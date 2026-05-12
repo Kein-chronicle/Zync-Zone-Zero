@@ -9,6 +9,13 @@ Thumbs.db
 
 # Logs
 *.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Dependencies
+node_modules/
 
 # Build outputs
 build/
@@ -46,3 +53,8 @@ Saved/
 *.suo
 *.xcodeproj/
 
+# Electron, if selected later
+release/
+*.dmg
+*.exe
+*.AppImage
