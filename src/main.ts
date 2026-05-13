@@ -362,6 +362,40 @@ function getCommandTokenLabel(token: CommandToken) {
   return token === 'TL' ? 'Z' : 'X';
 }
 
+function getKeyColor(key: string) {
+  if (key.includes('J')) {
+    return '#0fb9b1';
+  }
+
+  if (key.includes('K')) {
+    return '#f5c84c';
+  }
+
+  if (key.includes('L')) {
+    return '#5aa7ff';
+  }
+
+  if (key.includes('X')) {
+    return '#7c5cff';
+  }
+
+  if (key.includes('Z')) {
+    return '#ff5aee';
+  }
+
+  return '#8a95a8';
+}
+
+function getGuidanceKeyForSlot(slot: number, now = performance.now() / 1000) {
+  const guidance = getAttackGuidance(getGuidanceAttack(now));
+
+  if (!guidance || slot < 0 || slot >= guidance.keys.length) {
+    return undefined;
+  }
+
+  return guidance.keys[slot];
+}
+
 function getAverageGradeMultiplier(inputs: CommandInput[]) {
   if (inputs.length === 0) {
     return 0;
@@ -1632,6 +1666,7 @@ function drawRhythmLane(now: number) {
 
   const firstBeat = Math.floor(beatFloat) - 1;
   const lastBeat = Math.ceil(beatFloat + travelBeats + 1);
+  const currentBeat = Math.floor(beatFloat);
 
   for (let targetBeat = firstBeat; targetBeat <= lastBeat; targetBeat += 1) {
     const progress = 1 - (targetBeat - beatFloat) / travelBeats;
@@ -1645,24 +1680,32 @@ function drawRhythmLane(now: number) {
     const distanceToPerfect = Math.abs(progress - 1);
     const nodeRadius = 12 + Math.max(0, 1 - distanceToPerfect * 5) * 5;
     const alpha = passed ? Math.max(0, 1 - (progress - 1) * 6) : 0.62 + Math.max(0, 1 - distanceToPerfect * 3) * 0.32;
+    const guidanceSlot = targetBeat - currentBeat + commandBuffer.length;
+    const guidanceKey = getGuidanceKeyForSlot(guidanceSlot, now);
+    const noteColor = guidanceKey ? getKeyColor(guidanceKey) : '#0fb9b1';
+    const fillColor = guidanceKey ? noteColor : '#dff6ff';
 
     gameContext.globalAlpha = alpha;
-    gameContext.shadowColor = '#0fb9b1';
+    gameContext.shadowColor = noteColor;
     gameContext.shadowBlur = 10 + Math.max(0, 1 - distanceToPerfect * 4) * 18;
-    gameContext.fillStyle = '#dff6ff';
+    gameContext.fillStyle = fillColor;
     gameContext.beginPath();
     gameContext.arc(x, laneY, nodeRadius, 0, Math.PI * 2);
     gameContext.fill();
-    gameContext.strokeStyle = '#0fb9b1';
+    gameContext.strokeStyle = noteColor;
     gameContext.lineWidth = 3;
     gameContext.stroke();
     gameContext.shadowBlur = 0;
 
     gameContext.globalAlpha = alpha * 0.48;
-    gameContext.fillStyle = '#0fb9b1';
+    gameContext.fillStyle = guidanceKey ? '#101114' : '#0fb9b1';
     gameContext.beginPath();
     gameContext.arc(x, laneY, Math.max(4, nodeRadius * 0.35), 0, Math.PI * 2);
     gameContext.fill();
+
+    if (guidanceKey && progress > 0.72 && progress < 1.08) {
+      drawText(guidanceKey, x, laneY - 28, 13, noteColor, 'center');
+    }
   }
 
   gameContext.globalAlpha = 0.38 + pulse * 0.34;
@@ -1761,9 +1804,7 @@ function drawAttackRead(now: number) {
 
   const beatFloat = getBeatFloat(now);
   const untilImpact = attack.impactBeat - beatFloat;
-  const progress = clamp(1 - untilImpact / Math.max(attack.impactBeat - attack.windupBeat, 0.1), 0, 1);
   const color = attack.guardType === 'parryable' ? '#f5c84c' : '#ff5a6e';
-  const guidance = getAttackGuidance(attack);
   const pulse = Math.max(0, Math.sin(getBeatFloat(now) * Math.PI * 2));
   const urgent = untilImpact <= 2;
 
@@ -1773,32 +1814,8 @@ function drawAttackRead(now: number) {
   gameContext.lineWidth = urgent ? 12 : 7;
   gameContext.strokeRect(28, 188, 1224, 404);
   gameContext.globalAlpha = 1;
-
-  drawPanel(324, 348, 632, 134, color, urgent ? 0.92 : 0.82);
-  drawText('ENEMY INTENT', 348, 377, 14, '#8a95a8');
-  drawText(`${attack.guardType === 'parryable' ? 'YELLOW' : 'RED'} ${attack.move.toUpperCase()} IN ${Math.max(untilImpact, 0).toFixed(1)} BEATS`, 932, 377, 14, color, 'right');
-
-  gameContext.fillStyle = '#20242b';
-  gameContext.fillRect(360, 394, 560, 12);
-  gameContext.fillStyle = color;
-  gameContext.fillRect(360, 394, 560 * progress, 12);
-
-  if (guidance) {
-    drawText(guidance.label, 640, 423, 18, color, 'center');
-    guidance.command.forEach((token, index) => {
-      const x = 464 + index * 88;
-      gameContext.fillStyle = index === commandBuffer.length ? color : '#151b24';
-      gameContext.globalAlpha = index === commandBuffer.length ? 0.82 : 0.92;
-      gameContext.fillRect(x, 438, 70, 32);
-      gameContext.globalAlpha = 1;
-      gameContext.strokeStyle = color;
-      gameContext.lineWidth = 2;
-      gameContext.strokeRect(x, 438, 70, 32);
-      drawText(guidance.keys[index], x + 35, 461, 16, index === commandBuffer.length ? '#101114' : '#f0f3f7', 'center');
-      drawText(token, x + 35, 489, 11, '#8a95a8', 'center');
-    });
-    drawText(guidance.response, 640, 516, 13, '#dff6ff', 'center');
-  }
+  drawText(`${attack.guardType === 'parryable' ? 'YELLOW' : 'RED'} ${attack.move.toUpperCase()} · ${Math.max(untilImpact, 0).toFixed(1)} BEATS`, 640, 420, 18, color, 'center');
+  drawText('FOLLOW COLORED NOTES', 640, 446, 12, '#8a95a8', 'center');
 
   gameContext.restore();
 }
@@ -2010,6 +2027,26 @@ function drawZeroFieldFeedback(now: number) {
   gameContext.restore();
 }
 
+function drawKeyChip(key: string, x: number, y: number, width = key.length > 1 ? 36 : 28, height = 18) {
+  const color = getKeyColor(key);
+  gameContext.fillStyle = '#111722';
+  gameContext.fillRect(x, y, width, height);
+  gameContext.strokeStyle = color;
+  gameContext.lineWidth = 2;
+  gameContext.strokeRect(x, y, width, height);
+  drawText(key, x + width / 2, y + 14, 10, color, 'center');
+}
+
+function drawCommandCase(label: string, keys: string[], x: number, y: number) {
+  drawText(`${label} -`, x, y + 14, 10, '#8a95a8');
+  let cursorX = x + 62;
+  keys.forEach((key) => {
+    const width = key.length > 1 ? 36 : 28;
+    drawKeyChip(key, cursorX, y, width, 18);
+    cursorX += width + 5;
+  });
+}
+
 function drawHud(now: number) {
   const beatFloat = getBeatFloat(now);
   const inBreak = beatFloat < breakUntilBeat;
@@ -2075,39 +2112,48 @@ function drawHud(now: number) {
   ];
   commands.forEach(([key, label], index) => {
     const x = 256 + index * 154;
+    const keyColor = getKeyColor(key);
     gameContext.fillStyle = '#1b222d';
     gameContext.fillRect(x, 642, 126, 30);
-    drawText(key, x + 14, 663, 18, '#f0f3f7');
+    gameContext.strokeStyle = keyColor;
+    gameContext.lineWidth = 2;
+    gameContext.strokeRect(x, 642, 126, 30);
+    drawText(key, x + 14, 663, 18, keyColor);
     drawText(label, x + 110, 663, 13, '#8a95a8', 'right');
   });
 
   const bufferX = 472;
-  const bufferY = 576;
+  const bufferY = 548;
   for (let index = 0; index < 4; index += 1) {
     const entry = commandBuffer[index];
     const x = bufferX + index * 86;
+    const keyLabel = entry ? getCommandTokenLabel(entry.token) : '-';
+    const keyColor = entry ? getKeyColor(keyLabel) : '#2c313a';
     gameContext.fillStyle = entry ? '#1d2632' : '#10151d';
     gameContext.fillRect(x, bufferY, 66, 30);
-    gameContext.strokeStyle = entry ? (entry.grade === 'PERFECT' ? '#f5c84c' : '#0fb9b1') : '#2c313a';
+    gameContext.strokeStyle = entry ? keyColor : '#2c313a';
     gameContext.lineWidth = 2;
     gameContext.strokeRect(x, bufferY, 66, 30);
-    drawText(entry ? getCommandTokenLabel(entry.token) : '-', x + 33, bufferY + 21, 16, entry ? '#f0f3f7' : '#596171', 'center');
+    drawText(keyLabel, x + 33, bufferY + 21, 16, entry ? keyColor : '#596171', 'center');
   }
   drawText(
     activePhraseAction ? `EXECUTING ${activePhraseAction.name.toUpperCase()}` : `PHRASE ${lastPhraseName.toUpperCase()}`,
     640,
-    566,
+    538,
     13,
     activePhraseAction ? activePhraseAction.color : '#8a95a8',
     'center',
   );
   const guidance = getAttackGuidance(guidanceAttack);
   if (guidance) {
-    drawText(`NEXT KEYS: ${guidance.keys.join('  ')}    ${guidance.label}`, 640, 596, 13, warningColor, 'center');
-    drawText('TAG SLOT USES Z OR X', 640, 612, 10, '#8a95a8', 'center');
+    drawCommandCase('NEXT', guidance.keys, 470, 584);
+    drawText(guidance.label, 740, 598, 11, warningColor);
   } else {
-    drawText('RUSH  Z/X J J K     BREAK  J Z/X K K     EVADE  L Z/X J K', 640, 596, 11, '#8a95a8', 'center');
-    drawText('CROSS  Z/X J Z/X K     ULT  J K Z/X K', 640, 612, 11, '#8a95a8', 'center');
+    drawCommandCase('RUSH', ['Z/X', 'J', 'J', 'K'], 286, 578);
+    drawCommandCase('BREAK', ['J', 'Z/X', 'K', 'K'], 510, 578);
+    drawCommandCase('EVADE', ['L', 'Z/X', 'J', 'K'], 746, 578);
+    drawCommandCase('CROSS', ['Z/X', 'J', 'Z/X', 'K'], 398, 604);
+    drawCommandCase('ULT', ['J', 'K', 'Z/X', 'K'], 654, 604);
   }
 
   const banner = inBreak
