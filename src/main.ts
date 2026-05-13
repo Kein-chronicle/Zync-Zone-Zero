@@ -1858,7 +1858,7 @@ function drawBeatRing(now: number) {
   gameContext.arc(x, y, 12, 0, Math.PI * 2);
   gameContext.fill();
 
-  drawText(`${bpm} BPM · BGM ${bgmStatus}`, x, y + 82, 12, bgmStatus === 'ON' ? '#0fb9b1' : '#8a95a8', 'center');
+  drawText(`${bpm} BPM · BGM ${bgmStatus}`, x, y - 48, 12, bgmStatus === 'ON' ? '#0fb9b1' : '#8a95a8', 'center');
 }
 
 function drawFloatingTexts(deltaSeconds: number) {
@@ -2103,19 +2103,21 @@ function drawHud(now: number) {
   drawBar(1092, 180, 136, 8, energy, '#0fb9b1');
   drawText(inZeroField ? 'ZERO AUDIO BOOST' : 'ROUTE SCORE', 1032, 214, 12, inZeroField ? '#dff6ff' : '#8a95a8');
 
-  const bufferX = 472;
-  const bufferY = 590;
+  const bufferWidth = 92;
+  const bufferGap = 14;
+  const bufferX = (gameCanvas.width - bufferWidth * 4 - bufferGap * 3) / 2;
+  const bufferY = 592;
   for (let index = 0; index < 4; index += 1) {
     const entry = commandBuffer[index];
-    const x = bufferX + index * 86;
+    const x = bufferX + index * (bufferWidth + bufferGap);
     const keyLabel = entry ? getCommandTokenLabel(entry.token) : '-';
     const keyColor = entry ? getKeyColor(keyLabel) : '#2c313a';
     gameContext.fillStyle = entry ? '#1d2632' : '#10151d';
-    gameContext.fillRect(x, bufferY, 66, 30);
+    gameContext.fillRect(x, bufferY, bufferWidth, 42);
     gameContext.strokeStyle = entry ? keyColor : '#2c313a';
-    gameContext.lineWidth = 2;
-    gameContext.strokeRect(x, bufferY, 66, 30);
-    drawText(keyLabel, x + 33, bufferY + 21, 16, entry ? keyColor : '#596171', 'center');
+    gameContext.lineWidth = entry ? 3 : 2;
+    gameContext.strokeRect(x, bufferY, bufferWidth, 42);
+    drawText(keyLabel, x + bufferWidth / 2, bufferY + 29, 22, entry ? keyColor : '#596171', 'center');
   }
   drawText(
     activePhraseAction ? `EXECUTING ${activePhraseAction.name.toUpperCase()}` : `PHRASE ${lastPhraseName.toUpperCase()}`,
@@ -2135,7 +2137,7 @@ function drawHud(now: number) {
         ? 'YELLOW: TAG PARRY OR DODGE'
         : 'RED: DODGE ONLY'
       : 'NEUTRAL: BUILD RHYTHM PRESSURE';
-  drawText(banner, 640, 624, 14, warningColor, 'center');
+  drawText(banner, 640, 660, 14, warningColor, 'center');
 }
 
 function updatePhraseAction(now: number) {
