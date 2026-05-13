@@ -60,13 +60,13 @@ export const pixelCharacters: PixelCharacter[] = [
     groggyPower: 1.18,
   },
   {
-    name: 'Z-02',
-    accent: '#f5c84c',
-    hair: '#3a2b24',
-    outfit: '#34302a',
+    name: 'Z-05',
+    accent: '#ff5fd7',
+    hair: '#17121d',
+    outfit: '#2a2632',
     skin: '#e6b995',
-    weapon: '#f0b13a',
-    groggyPower: 1.35,
+    weapon: '#fbbeff',
+    groggyPower: 1.32,
   },
   {
     name: 'Z-03',
@@ -98,7 +98,7 @@ export function drawPixelCharacter(
   ctx.translate(Math.round(x), Math.round(y));
   ctx.imageSmoothingEnabled = false;
 
-  if (character.name === 'Z-02' || character.name === 'Z-03' || character.name === 'Z-04') {
+  if (character.name === 'Z-02' || character.name === 'Z-03' || character.name === 'Z-04' || character.name === 'Z-05') {
     ctx.restore();
     drawSpriteSheetCharacter(character.name, ctx, x, y, scale, {
       active: options.active,

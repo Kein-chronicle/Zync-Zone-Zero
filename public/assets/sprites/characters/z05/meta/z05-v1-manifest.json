@@ -1,0 +1,35 @@
+{
+  "id": "z05-combat-core-v1",
+  "kind": "character",
+  "sourcePromptVersion": "sprite-production-rules@character-creation-protocol",
+  "conceptDocument": "docs/art/characters/z05-nangong-yu-inspired-concept.md",
+  "sourceImage": "docs/art/generated/z05-combat-core-v1-source.png",
+  "conceptImage": "docs/art/generated/z05-concept-v1-source.png",
+  "walkSourceImage": "docs/art/generated/z05-walk-north-v1-source.png",
+  "runtimeImage": "public/assets/sprites/characters/z05/sheets/z05-combat-core-v1.png",
+  "walkImage": "public/assets/sprites/characters/z05/sheets/z05-walk-north-v1.png",
+  "columns": 4,
+  "rows": 4,
+  "sourceInset": 4,
+  "walkColumns": 4,
+  "walkRows": 1,
+  "walkSourceInset": 0,
+  "backgroundKey": "transparent",
+  "approved": false,
+  "referenceExtraction": [
+    "Reference traits from Nangong Yu: black shoulder-length hair, red-eye focal point, idol dancer tone, Ether/Stun/Strike rhythm identity, Downbeat/Vibrato-style precise timing.",
+    "Do not copy exact costume, faction marks, official symbols, story role, hairstyle cut, face, weapon design, name, or recognizable silhouette."
+  ],
+  "validation": [
+    "created from Z-05 locked identity, not by recoloring Z-02 or modifying another character sheet",
+    "transparent runtime background generated directly with no grid or chroma residue",
+    "combat sheet normalized to 1256x1256 with 314x314 cells",
+    "walk sheet normalized to 1256x314 peer runtime dimensions",
+    "gauntlets and wrist emitters remain visible in idle, attack, tag, ultimate, and walk frames",
+    "runtime screenshot required before approval"
+  ],
+  "issues": [
+    "temporary runtime frame mapping still uses shared 4x4 combat-core metadata",
+    "prototype sheet covers combat core and north walk only; full eight-direction RPG movement remains pending"
+  ]
+}
