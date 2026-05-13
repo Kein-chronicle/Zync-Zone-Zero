@@ -291,8 +291,8 @@ function isCommandInputBeat(beat: number) {
   return cycleBeat < commandInputBeats;
 }
 
-function isCommandInputOpen(now = performance.now() / 1000) {
-  return isCommandInputBeat(getBeatFloat(now));
+function isCommandInputTargetOpen(now = performance.now() / 1000) {
+  return isCommandInputBeat(Math.round(getBeatFloat(now)));
 }
 
 function isBossGroggy(now = performance.now() / 1000) {
@@ -1388,7 +1388,7 @@ function handleAction(action: Action) {
 
   const now = performance.now() / 1000;
   startBgm(now);
-  if (!isCommandInputOpen(now)) {
+  if (!isCommandInputTargetOpen(now)) {
     lastAction = 'ACTION PHASE';
     lastGrade = 'GOOD';
     addEffect('beatRing', 640, 560, '#8a95a8', 0.48);
@@ -2350,8 +2350,6 @@ function update(deltaSeconds: number, now: number) {
       lastPhraseName = 'Broken Phrase';
       addEffect('warningPulse', 640, 638, '#ff5a6e', 0.9);
       addFloatingText('INCOMPLETE PHRASE', 640, 638, '#ff5a6e');
-    } else if (commandInputOpen) {
-      commandBuffer = [];
     }
     lastCommandInputOpen = commandInputOpen;
   }
