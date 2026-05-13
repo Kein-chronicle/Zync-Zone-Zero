@@ -1,5 +1,6 @@
 import './styles.css';
 import { createPixelEffect, drawPixelEffects, type PixelEffect, updatePixelEffects } from './pixelEffects';
+import { drawPixelCityStage } from './pixelEnvironment';
 import { coreBrutePalette, drawPixelBoss, drawPixelCharacter, pixelCharacters } from './pixelSprites';
 
 type Action = 'weak' | 'heavy' | 'dodge' | 'tag';
@@ -704,11 +705,10 @@ function render(nowMs: number) {
   update(deltaSeconds, now);
 
   gameContext.clearRect(0, 0, gameCanvas.width, gameCanvas.height);
-  gameContext.fillStyle = '#101114';
-  gameContext.fillRect(0, 0, gameCanvas.width, gameCanvas.height);
-
-  gameContext.fillStyle = '#151820';
-  gameContext.fillRect(0, 310, gameCanvas.width, 410);
+  drawPixelCityStage(gameContext, gameCanvas.width, gameCanvas.height, {
+    beat: getBeatFloat(now),
+    warningColor: getActiveAttack(now)?.guardType === 'unparryable' ? '#ff5a6e' : '#0fb9b1',
+  });
 
   drawBoss(now);
   drawAttackRead(now);
