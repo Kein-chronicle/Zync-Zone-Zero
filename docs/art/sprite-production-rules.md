@@ -128,8 +128,12 @@ Runtime behavior:
 
 - When the character uses an ultimate, show the cutscene full-screen for 2 seconds.
 - The cutscene should cover the entire combat canvas.
+- The cutscene must enter with a visible cinematic transition, not a plain static overlay.
+- Add runtime overlay effects on top of the cutscene: flash, energy streaks, slash sweep, rhythm pulse, particles, or equivalent character-specific motion.
+- The overlay effects must be animated for the whole 2-second duration so the cutscene does not feel frozen.
 - Draw a subtle dark overlay under the cutscene only if readability requires it.
 - After 2 seconds, return to combat automatically.
+- For QA, the local runtime may support `?ultimatePreview=<character-id>` to preview a cutscene without spending combat resources.
 
 If a cutscene generation fails:
 

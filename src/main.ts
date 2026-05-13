@@ -16,6 +16,13 @@ type EnemyMove = 'slash' | 'slam' | 'thrust';
 type GuardType = 'parryable' | 'unparryable';
 type UltimateCutsceneId = 'Z-04' | 'Z-05' | 'Z-06';
 
+interface UltimateCutsceneStyle {
+  accent: string;
+  secondary: string;
+  spark: string;
+  slashAngle: number;
+}
+
 interface EnemyAttack {
   id: number;
   move: EnemyMove;
@@ -112,6 +119,11 @@ const ultimateCutsceneSources: Record<UltimateCutsceneId, string> = {
   'Z-05': '/assets/cutscenes/z05-ultimate-cutscene-v001.png',
   'Z-06': '/assets/cutscenes/z06-ultimate-cutscene-v001.png',
 };
+const ultimateCutsceneStyles: Record<UltimateCutsceneId, UltimateCutsceneStyle> = {
+  'Z-04': { accent: '#dff6ff', secondary: '#7c5cff', spark: '#ffffff', slashAngle: -0.38 },
+  'Z-05': { accent: '#ff5aee', secondary: '#f5c84c', spark: '#ffe4fb', slashAngle: 0.22 },
+  'Z-06': { accent: '#f5c84c', secondary: '#0fb9b1', spark: '#fff3cc', slashAngle: -0.18 },
+};
 const ultimateCutsceneImages = Object.fromEntries(
   Object.entries(ultimateCutsceneSources).map(([id, source]) => {
     const image = new Image();
@@ -161,6 +173,7 @@ let activeAdvanceTargetY = 585;
 let ultimateCutsceneUntil = 0;
 let ultimateCutsceneStartedAt = 0;
 let activeUltimateCutsceneId: UltimateCutsceneId | undefined;
+let queuedUltimatePreviewId: UltimateCutsceneId | undefined;
 const bossActor: FieldActor = { attackUntil: 0, nextMoveAt: 0, x: 640, y: 340, targetX: 640, targetY: 340 };
 const characterActors: FieldActor[] = [
   { attackUntil: 0, nextMoveAt: 0, x: 640, y: 585, targetX: 640, targetY: 585 },
@@ -352,6 +365,11 @@ function triggerUltimateCutscene(characterName: string, now: number) {
   activeUltimateCutsceneId = characterName;
   ultimateCutsceneStartedAt = now;
   ultimateCutsceneUntil = now + ultimateCutsceneDuration;
+}
+
+const ultimatePreviewParam = new URLSearchParams(window.location.search).get('ultimatePreview');
+if (ultimatePreviewParam && isUltimateCutsceneId(ultimatePreviewParam)) {
+  queuedUltimatePreviewId = ultimatePreviewParam;
 }
 
 function addEffect(type: PixelEffect['type'], x: number, y: number, color: string, intensity = 1) {
@@ -1247,19 +1265,109 @@ function drawFloatingTexts(deltaSeconds: number) {
   }
 }
 
+function drawCutsceneEnergyLine(x: number, y: number, length: number, width: number, angle: number, color: string, alpha: number) {
+  gameContext.save();
+  gameContext.translate(x, y);
+  gameContext.rotate(angle);
+  const gradient = gameContext.createLinearGradient(-length / 2, 0, length / 2, 0);
+  gradient.addColorStop(0, 'rgba(255,255,255,0)');
+  gradient.addColorStop(0.35, color);
+  gradient.addColorStop(0.5, '#ffffff');
+  gradient.addColorStop(0.65, color);
+  gradient.addColorStop(1, 'rgba(255,255,255,0)');
+  gameContext.globalAlpha = alpha;
+  gameContext.fillStyle = gradient;
+  gameContext.fillRect(-length / 2, -width / 2, length, width);
+  gameContext.restore();
+}
+
+function drawCutsceneOverlay(progress: number, elapsed: number, style: UltimateCutsceneStyle) {
+  const beatPulse = 0.5 + Math.sin(elapsed * Math.PI * 8) * 0.5;
+  const burst = clamp(1 - progress / 0.34, 0, 1);
+  const sweep = clamp((progress - 0.08) / 0.38, 0, 1);
+  const outro = clamp((progress - 0.82) / 0.18, 0, 1);
+
+  gameContext.save();
+  gameContext.globalCompositeOperation = 'screen';
+
+  for (let index = 0; index < 26; index += 1) {
+    const phase = (index / 26 + elapsed * (0.18 + (index % 5) * 0.015)) % 1;
+    const y = 70 + ((index * 53) % 620);
+    const x = -180 + phase * 1640;
+    const width = 140 + (index % 4) * 55;
+    const alpha = (0.12 + beatPulse * 0.12) * (1 - outro);
+    drawCutsceneEnergyLine(x, y, width, 3 + (index % 3), style.slashAngle, index % 2 ? style.accent : style.secondary, alpha);
+  }
+
+  for (let index = 0; index < 44; index += 1) {
+    const seed = index * 97.13;
+    const phase = (elapsed * (0.22 + (index % 7) * 0.025) + index * 0.061) % 1;
+    const x = ((seed * 13) % 1280) + Math.sin(elapsed * 2 + index) * 28;
+    const y = 720 - phase * 820 + Math.cos(elapsed * 3 + index * 0.4) * 18;
+    const size = 2 + (index % 5);
+    gameContext.globalAlpha = (0.18 + beatPulse * 0.18) * (1 - outro);
+    gameContext.fillStyle = index % 3 === 0 ? style.spark : index % 3 === 1 ? style.accent : style.secondary;
+    gameContext.beginPath();
+    gameContext.arc(x, y, size, 0, Math.PI * 2);
+    gameContext.fill();
+  }
+
+  drawCutsceneEnergyLine(640 + sweep * 140 - 70, 352, 1500, 18 + beatPulse * 8, style.slashAngle, style.accent, 0.38 * (1 - outro));
+  drawCutsceneEnergyLine(580 - sweep * 180, 432, 1260, 9 + beatPulse * 5, style.slashAngle + 0.18, style.secondary, 0.28 * (1 - outro));
+  gameContext.restore();
+
+  if (burst > 0) {
+    gameContext.save();
+    gameContext.globalCompositeOperation = 'screen';
+    gameContext.globalAlpha = burst * 0.82;
+    gameContext.fillStyle = style.spark;
+    gameContext.fillRect(0, 0, gameCanvas.width, gameCanvas.height);
+    gameContext.restore();
+  }
+
+  if (sweep < 1) {
+    const bandWidth = 520 * (1 - sweep);
+    gameContext.save();
+    gameContext.globalAlpha = 0.74 * (1 - sweep);
+    gameContext.fillStyle = '#05070d';
+    gameContext.beginPath();
+    gameContext.moveTo(0, 0);
+    gameContext.lineTo(bandWidth, 0);
+    gameContext.lineTo(0, gameCanvas.height);
+    gameContext.closePath();
+    gameContext.fill();
+    gameContext.beginPath();
+    gameContext.moveTo(gameCanvas.width, 0);
+    gameContext.lineTo(gameCanvas.width - bandWidth, gameCanvas.height);
+    gameContext.lineTo(gameCanvas.width, gameCanvas.height);
+    gameContext.closePath();
+    gameContext.fill();
+    gameContext.restore();
+  }
+}
+
 function drawUltimateCutscene(now: number) {
   if (!activeUltimateCutsceneId || now >= ultimateCutsceneUntil) {
     return;
   }
 
   const image = ultimateCutsceneImages[activeUltimateCutsceneId];
+  const style = ultimateCutsceneStyles[activeUltimateCutsceneId];
+  const elapsed = now - ultimateCutsceneStartedAt;
   const progress = clamp((now - ultimateCutsceneStartedAt) / ultimateCutsceneDuration, 0, 1);
-  const fadeIn = clamp(progress / 0.08, 0, 1);
-  const fadeOut = clamp((1 - progress) / 0.14, 0, 1);
+  const fadeIn = clamp(progress / 0.04, 0, 1);
+  const fadeOut = clamp((1 - progress) / 0.12, 0, 1);
   const alpha = Math.min(fadeIn, fadeOut);
+  const shake = clamp(1 - progress / 0.28, 0, 1);
+  const scale = 1.08 - 0.04 * clamp(progress / 0.7, 0, 1);
+  const shakeX = Math.sin(elapsed * 84) * 9 * shake;
+  const shakeY = Math.cos(elapsed * 71) * 5 * shake;
 
   gameContext.save();
   gameContext.globalAlpha = alpha;
+  gameContext.translate(gameCanvas.width / 2 + shakeX, gameCanvas.height / 2 + shakeY);
+  gameContext.scale(scale, scale);
+  gameContext.translate(-gameCanvas.width / 2, -gameCanvas.height / 2);
 
   if (image.complete && image.naturalWidth > 0 && image.naturalHeight > 0) {
     const canvasRatio = gameCanvas.width / gameCanvas.height;
@@ -1287,6 +1395,11 @@ function drawUltimateCutscene(now: number) {
   gameContext.fillStyle = '#05070d';
   gameContext.fillRect(0, 0, gameCanvas.width, 84);
   gameContext.fillRect(0, gameCanvas.height - 96, gameCanvas.width, 96);
+  gameContext.restore();
+
+  gameContext.save();
+  gameContext.globalAlpha = alpha;
+  drawCutsceneOverlay(progress, elapsed, style);
   gameContext.restore();
 }
 
@@ -1472,6 +1585,10 @@ function updateFieldMotion(deltaSeconds: number, now: number) {
 
 function update(deltaSeconds: number, now: number) {
   const beat = Math.floor(getBeatFloat(now));
+  if (queuedUltimatePreviewId && now - startTime > 0.35) {
+    triggerUltimateCutscene(queuedUltimatePreviewId, now);
+    queuedUltimatePreviewId = undefined;
+  }
   if (zeroFieldUntil > 0 && now >= zeroFieldUntil) {
     zeroFieldUntil = 0;
     zeroUltimateAvailable = false;
