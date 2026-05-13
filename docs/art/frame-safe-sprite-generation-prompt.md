@@ -6,6 +6,10 @@ Use pose-by-pose sprite frames instead of hand-converting a concept sheet into c
 
 The generated sheet must be treated as production input for slicing, not as a pretty illustration sheet.
 
+Use this document together with the full sprite pipeline rules:
+
+- `docs/art/sprite-production-rules.md`
+
 ## Problem To Prevent
 
 Generated attack poses often extend across the X axis into neighboring cells.

@@ -29,6 +29,7 @@ Do not use freeform generated sheets directly as final runtime sprites.
 Use generated sheets only when they follow the frame-safe slicing rules in:
 
 - `docs/art/frame-safe-sprite-generation-prompt.md`
+- `docs/art/sprite-production-rules.md`
 
 Use code for:
 
