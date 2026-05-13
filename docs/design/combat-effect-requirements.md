@@ -391,6 +391,19 @@ Suggested primitives:
 - floating text
 - boss core crack overlay
 
+Current implementation file:
+
+- `src/pixelEffects.ts`
+
+Current runtime hooks:
+
+- weak/heavy attacks spawn slash and hit-spark effects
+- dodge spawns afterimage effects
+- successful tag parry spawns tag-parry flash and burst effects
+- failed tag on red attack spawns warning pulse
+- Groggy Break spawns a large break effect
+- timing feedback spawns beat-ring or miss burst feedback
+
 Suggested data shape:
 
 ```ts
@@ -429,4 +442,3 @@ type EffectType =
 - Advanced camera snap.
 - Multi-stage boss warning distortion.
 - Result screen effect burst.
-

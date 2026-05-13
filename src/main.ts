@@ -1,4 +1,5 @@
 import './styles.css';
+import { createPixelEffect, drawPixelEffects, type PixelEffect, updatePixelEffects } from './pixelEffects';
 import { coreBrutePalette, drawPixelBoss, drawPixelCharacter, pixelCharacters } from './pixelSprites';
 
 type Action = 'weak' | 'heavy' | 'dodge' | 'tag';
@@ -91,6 +92,7 @@ let lastSupportBeat = -1;
 const attacks: EnemyAttack[] = [];
 const inputHistory: CombatInput[] = [];
 const floatingTexts: FloatingText[] = [];
+const pixelEffects: PixelEffect[] = [];
 
 function getSongTime(now = performance.now() / 1000) {
   return now - startTime;
@@ -145,6 +147,10 @@ function clamp(value: number, min: number, max: number) {
 
 function addFloatingText(text: string, x: number, y: number, color: string) {
   floatingTexts.push({ text, x, y, color, ttl: 0.85 });
+}
+
+function addEffect(type: PixelEffect['type'], x: number, y: number, color: string, intensity = 1) {
+  pixelEffects.push(createPixelEffect(type, x, y, color, intensity));
 }
 
 function generateEnemyAttacks(currentBeat: number) {
@@ -259,6 +265,7 @@ function resolveEnemyHits(now = performance.now() / 1000) {
       playerHp = clamp(playerHp - 10, 0, 100);
       sync = clamp(sync - 9, 0, 100);
       combo = 0;
+      addEffect('pixelBurst', 640, 470, '#ff5a6e', 1.1);
       addFloatingText('HIT', 640, 470, '#ff5a6e');
     }
   });
@@ -303,6 +310,7 @@ function enterBreak(now = performance.now() / 1000) {
   breakUntilBeat = currentBeat + 8;
   groggy = 0;
   counterUntil = now + 1.8;
+  addEffect('groggyBreak', 640, 270, '#f5c84c', 1.4);
   addFloatingText('GROGGY BREAK', 640, 270, '#f5c84c');
 }
 
@@ -359,6 +367,8 @@ function applyAttack(action: 'weak' | 'heavy', grade: Grade, now: number) {
   groggy = clamp(groggy + groggyGain * multiplier, 0, 100);
   energy = action === 'weak' ? clamp(energy + 6 * multiplier, 0, 100) : energy;
 
+  addEffect(action === 'weak' ? 'slashArc' : 'hitSpark', 640, 265, action === 'weak' ? '#f0f3f7' : '#f5c84c', multiplier);
+  addEffect('beatRing', 1120, 610, grade === 'PERFECT' ? '#f5c84c' : '#0fb9b1', multiplier);
   addFloatingText(comboName || grade, 640, 525, comboName ? '#f5c84c' : '#f0f3f7');
 }
 
@@ -377,6 +387,7 @@ function handleAction(action: Action) {
   if (grade === 'MISS') {
     combo = 0;
     sync = clamp(sync - 5, 0, 100);
+    addEffect('pixelBurst', 640, 610, '#8a95a8', 0.65);
     addFloatingText('MISS', 640, 610, '#8a95a8');
     return;
   }
@@ -393,12 +404,14 @@ function handleAction(action: Action) {
   if (action === 'dodge') {
     const target = findDodgeTarget(now);
     evasionUntil = now + (grade === 'PERFECT' ? 0.55 : 0.38);
+    addEffect('afterimage', 640, 585, '#0fb9b1', multiplier);
 
     if (target) {
       target.resolved = true;
       counterUntil = now + 1;
       energy = clamp(energy + 7 * multiplier, 0, 100);
       score += Math.round(140 * multiplier);
+      addEffect('pixelBurst', 640, 485, '#0fb9b1', multiplier);
       addFloatingText('EVADE WINDOW', 640, 485, '#0fb9b1');
     } else {
       addFloatingText('STEP', 640, 575, '#8a95a8');
@@ -419,13 +432,17 @@ function handleAction(action: Action) {
       groggy = clamp(groggy + 24 * multiplier, 0, 100);
       energy = clamp(energy + 16 * multiplier, 0, 100);
       score += Math.round(280 * multiplier);
+      addEffect('tagParryFlash', 640, 465, nextCharacter.accent, multiplier);
+      addEffect('pixelBurst', 640, 300, '#f5c84c', multiplier);
       addFloatingText(`${nextCharacter.name} TAG PARRY`, 640, 465, nextCharacter.accent);
     } else if (findUnparryableTarget(now)) {
       combo = 0;
       sync = clamp(sync - 8, 0, 100);
+      addEffect('warningPulse', 640, 465, '#ff5a6e', 1);
       addFloatingText('TAG BLOCKED', 640, 575, '#ff5a6e');
     } else {
       counterUntil = now + 0.55;
+      addEffect('beatRing', 640, 585, nextCharacter.accent, 0.85);
       addFloatingText(`${nextCharacter.name} TAG IN`, 640, 575, nextCharacter.accent);
     }
   }
@@ -455,6 +472,7 @@ function resetFight() {
   attacks.length = 0;
   inputHistory.length = 0;
   floatingTexts.length = 0;
+  pixelEffects.length = 0;
 }
 
 function drawMeter(label: string, value: number, x: number, y: number, width: number, color: string) {
@@ -632,6 +650,7 @@ function update(deltaSeconds: number, now: number) {
   generateEnemyAttacks(beat);
   resolveEnemyHits(now);
   updateSupportAttacks(now);
+  updatePixelEffects(pixelEffects, deltaSeconds);
 
   if (sync <= 0) {
     playerHp = clamp(playerHp - deltaSeconds * 3, 0, 100);
@@ -657,6 +676,7 @@ function render(nowMs: number) {
   drawParty(now);
   drawBeatRing(now);
   drawHud(now);
+  drawPixelEffects(gameContext, pixelEffects);
   drawFloatingTexts(deltaSeconds);
 
   requestAnimationFrame(render);
