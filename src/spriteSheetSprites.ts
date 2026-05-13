@@ -11,7 +11,7 @@ export type CharacterPose =
   | 'weak2'
   | 'weak3';
 
-export type SpriteSheetCharacterId = 'Z-01' | 'Z-02';
+export type SpriteSheetCharacterId = 'Z-01' | 'Z-02' | 'Z-03';
 
 interface SpriteFrameMeta {
   column: number;
@@ -28,15 +28,25 @@ const z01Sheet = new Image();
 z01Sheet.src = '/assets/sprites/characters/z01/sheets/z01-combat-core-v3.png';
 const z02Sheet = new Image();
 z02Sheet.src = '/assets/sprites/characters/z02/sheets/z02-combat-core-v1.png';
+const z03Sheet = new Image();
+z03Sheet.src = '/assets/sprites/characters/z03/sheets/z03-combat-core-v1.png';
 
 const characterSheets: Record<SpriteSheetCharacterId, HTMLImageElement> = {
   'Z-01': z01Sheet,
   'Z-02': z02Sheet,
+  'Z-03': z03Sheet,
 };
 
 const fallbackColors: Record<SpriteSheetCharacterId, string> = {
   'Z-01': '#72e9ff',
   'Z-02': '#f5c84c',
+  'Z-03': '#0fb9b1',
+};
+
+const sourceInsets: Record<SpriteSheetCharacterId, number> = {
+  'Z-01': 4,
+  'Z-02': 4,
+  'Z-03': 16,
 };
 
 function frame(id: string, column: number, row: number): SpriteFrameMeta {
@@ -151,7 +161,7 @@ export function drawSpriteSheetCharacter(
   ctx.imageSmoothingEnabled = false;
   const sourceCellWidth = sheet.naturalWidth / 4;
   const sourceCellHeight = sheet.naturalHeight / 4;
-  const sourceInset = 4;
+  const sourceInset = sourceInsets[characterId];
   ctx.drawImage(
     sheet,
     selectedFrame.column * sourceCellWidth + sourceInset,

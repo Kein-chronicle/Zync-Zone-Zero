@@ -97,7 +97,7 @@ export function drawPixelCharacter(
   ctx.translate(Math.round(x), Math.round(y));
   ctx.imageSmoothingEnabled = false;
 
-  if (character.name === 'Z-01' || character.name === 'Z-02') {
+  if (character.name === 'Z-01' || character.name === 'Z-02' || character.name === 'Z-03') {
     ctx.restore();
     drawSpriteSheetCharacter(character.name, ctx, x, y, scale, {
       active: options.active,

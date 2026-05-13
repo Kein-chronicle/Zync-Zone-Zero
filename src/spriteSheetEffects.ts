@@ -1,4 +1,4 @@
-export type SpriteSheetEffectType = 'impactGold' | 'projectile' | 'slash';
+export type SpriteSheetEffectType = 'impactGold' | 'kineticTeal' | 'projectile' | 'slash';
 
 export interface SpriteSheetEffect {
   type: SpriteSheetEffectType;
@@ -19,6 +19,9 @@ projectileSheet.src = '/assets/sprites/effects/projectile/energy-projectile-effe
 const impactGoldSheet = new Image();
 impactGoldSheet.src = '/assets/sprites/effects/impact/z02-impact-effect-v1.png';
 
+const kineticTealSheet = new Image();
+kineticTealSheet.src = '/assets/sprites/effects/kinetic/z03-kinetic-effect-v1.png';
+
 function getSheet(type: SpriteSheetEffectType) {
   if (type === 'slash') {
     return slashSheet;
@@ -26,6 +29,10 @@ function getSheet(type: SpriteSheetEffectType) {
 
   if (type === 'impactGold') {
     return impactGoldSheet;
+  }
+
+  if (type === 'kineticTeal') {
+    return kineticTealSheet;
   }
 
   return projectileSheet;

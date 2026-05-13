@@ -448,14 +448,26 @@ function applyAttack(action: 'weak' | 'heavy', grade: Grade, now: number, chainS
   groggy = clamp(groggy + groggyGain * multiplier * activeCharacter.groggyPower, 0, 100);
   energy = action === 'weak' ? clamp(energy + 6 * multiplier, 0, 100) : energy;
 
-  const activeEffectColor = activeCharacter.name === 'Z-02' ? activeCharacter.accent : action === 'weak' ? '#f0f3f7' : '#f5c84c';
-  const activeSpriteEffect = activeCharacter.name === 'Z-02' ? 'impactGold' : action === 'weak' ? 'slash' : 'projectile';
+  const activeEffectColor =
+    activeCharacter.name === 'Z-02' || activeCharacter.name === 'Z-03'
+      ? activeCharacter.accent
+      : action === 'weak'
+        ? '#f0f3f7'
+        : '#f5c84c';
+  const activeSpriteEffect =
+    activeCharacter.name === 'Z-02'
+      ? 'impactGold'
+      : activeCharacter.name === 'Z-03'
+        ? 'kineticTeal'
+        : action === 'weak'
+          ? 'slash'
+          : 'projectile';
   addEffect(action === 'weak' ? 'slashArc' : 'hitSpark', 640, 265, activeEffectColor, multiplier);
   addSpriteEffect(
     activeSpriteEffect,
     640,
-    activeCharacter.name === 'Z-02' ? 375 : action === 'weak' ? 395 : 365,
-    activeCharacter.name === 'Z-02' ? 0.58 : action === 'weak' ? 0.55 : 0.48,
+    activeCharacter.name === 'Z-02' ? 375 : activeCharacter.name === 'Z-03' ? 370 : action === 'weak' ? 395 : 365,
+    activeCharacter.name === 'Z-02' ? 0.58 : activeCharacter.name === 'Z-03' ? 0.56 : action === 'weak' ? 0.55 : 0.48,
     action === 'weak' ? 0.28 : 0.34,
     0.9,
   );
@@ -481,9 +493,9 @@ function applyUltimate(grade: Grade, now: number) {
   groggy = clamp(groggy + 18 * multiplier * activeCharacter.groggyPower, 0, 100);
   score += Math.round(700 * multiplier);
   addEffect('tagParryFlash', 640, 410, activeCharacter.accent, 1.45 * multiplier);
-  addEffect('hitSpark', 640, 255, '#f5c84c', 1.6 * multiplier);
-  addSpriteEffect('slash', 640, 360, 0.75, 0.44, 1);
-  addSpriteEffect('projectile', 640, 340, 0.65, 0.5, 0.95);
+  addEffect('hitSpark', 640, 255, activeCharacter.accent, 1.6 * multiplier);
+  addSpriteEffect(activeCharacter.name === 'Z-03' ? 'kineticTeal' : 'slash', 640, 360, 0.75, 0.44, 1);
+  addSpriteEffect(activeCharacter.name === 'Z-02' ? 'impactGold' : activeCharacter.name === 'Z-03' ? 'kineticTeal' : 'projectile', 640, 340, 0.65, 0.5, 0.95);
   addEffect('beatRing', 1120, 610, '#f5c84c', 1.3 * multiplier);
   addFloatingText(`${activeCharacter.name} ULTIMATE`, 640, 500, '#f5c84c');
 }

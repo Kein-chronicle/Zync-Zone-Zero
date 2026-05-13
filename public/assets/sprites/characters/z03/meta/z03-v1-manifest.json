@@ -1,0 +1,17 @@
+{
+  "id": "z03-combat-core-v1",
+  "kind": "character",
+  "sourcePromptVersion": "sprite-production-rules@829313e",
+  "sourceImage": "docs/art/generated/z03-combat-core-v1-source.png",
+  "conceptImage": "docs/art/generated/z03-concept-v1-source.png",
+  "runtimeImage": "public/assets/sprites/characters/z03/sheets/z03-combat-core-v1.png",
+  "columns": 4,
+  "rows": 4,
+  "sourceInset": 16,
+  "backgroundKey": "#00ff00",
+  "approved": false,
+  "issues": [
+    "prototype asset; still needs dedicated hit/down/movement sheets",
+    "uses shared 4x4 combat-core frame mapping with Z-01 and Z-02"
+  ]
+}
