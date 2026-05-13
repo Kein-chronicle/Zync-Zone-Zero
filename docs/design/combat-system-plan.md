@@ -9,6 +9,8 @@ Zync Zone Zero will use a fixed-camera boss confrontation format:
 - Combat is rhythm-governed, not free-camera action.
 - The player wins by reading boss phrases and executing timed attacks, dodges, parries, and burst sequences.
 
+Canonical command implementation rules are in `docs/rulebooks/combat-command-rulebook.md`.
+
 ## Reference Pillars
 
 - Deadly Assault-style boss challenge pressure.

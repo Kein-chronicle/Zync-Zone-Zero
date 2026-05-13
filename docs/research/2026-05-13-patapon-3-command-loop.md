@@ -58,6 +58,10 @@ This would make Zync more strategic and less button-mashy.
 
 Zync should not copy Patapon's army-command fantasy directly.
 
+Canonical implementation rules now live in `docs/rulebooks/combat-command-rulebook.md`.
+
+The examples below are research-era mappings, not final command rules.
+
 Instead, use a "combat phrase" model:
 
 - 4-beat input window
@@ -66,7 +70,7 @@ Instead, use a "combat phrase" model:
 - the resulting 4-token phrase determines the team's action
 - enemy attacks can force the player to alter the next phrase
 
-Example phrase mappings:
+Historical phrase mapping examples:
 
 - `weak weak weak weak`: stable combo pressure
 - `weak weak heavy heavy`: strong finisher route

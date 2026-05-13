@@ -65,25 +65,27 @@ Heavy attacks should feel more committed and more readable:
 
 ### Combo Branches
 
-Prototype combos currently planned:
+Prototype combat is moving to the command phrase rules in `docs/rulebooks/combat-command-rulebook.md`.
 
-- Weak -> Heavy: `Launch Cut`
-- Weak -> Weak -> Heavy: `Rush Finish`
-- Dodge -> Weak: `Evade Counter`
-- Tag -> Weak: `Tag Counter`
-- Heavy -> Heavy: `Breaker`
+The visual set must support these first-version commands:
+
+- `T W W H`: Rush
+- `W T H H`: Break
+- `D T W H`: Evasive Counter
+- `T W T H`: Cross Tag Assault
+- `W H T U`: Zync Ultimate
 
 Each branch should eventually have a unique pose, timing accent, and hit effect.
 
 ## Character-Specific Direction
 
-### Z-01: Balanced Lead
+### Z-04: Precision Lead
 
 Role:
 
-- Default active character.
-- Clean readable baseline for all combat systems.
-- Should feel stable, direct, and responsive.
+- Precise sword lead.
+- Strong Perfect timing reward.
+- Best candidate for Break and Ultimate clarity.
 
 Needed unique motions:
 
@@ -96,13 +98,13 @@ Needed unique motions:
 - Tag parry: clean guard break parry
 - Support auto: short ranged slash or projectile pulse
 
-### Z-02: Heavy Breaker
+### Z-05: Rush Fighter
 
 Role:
 
-- Strong Groggy pressure.
-- Slower-looking but weighty.
-- Good candidate for tag parry impact emphasis.
+- Fast combo pressure.
+- Strong Rush and Cross Tag Assault identity.
+- Should feel aggressive and rhythmic.
 
 Needed unique motions:
 
@@ -115,13 +117,13 @@ Needed unique motions:
 - Tag parry: shield-like intercept or weapon block
 - Support auto: heavy delayed hit on every other beat
 
-### Z-03: Fast Counter
+### Z-06: Evasive Support
 
 Role:
 
-- Fast rhythm feel.
-- Strong dodge follow-up identity.
-- Visually useful for quick tag-ins.
+- Evasive support and counter specialist.
+- Strong Evasive Counter identity.
+- Good candidate for safer timing and utility effects.
 
 Needed unique motions:
 
@@ -276,4 +278,3 @@ Do not break player orientation. Camera motion should emphasize impact, not crea
 - Groggy Break special presentation.
 - Per-character unique animation timings.
 - Result pose lineup.
-

@@ -1,10 +1,37 @@
-# Command Phrase Rulebook V1
+# Combat Command Rulebook
+
+## Status
+
+This is the canonical rulebook for the next combat-system implementation.
+
+It replaces these removed draft documents:
+
+- `docs/design/command-phrase-combat-mechanic.md`
+- `docs/design/command-phrase-rulebook-v1.md`
+
+Use this document when implementing command buffers, phrase recognition, tag direction, ultimate activation, and boss hint response.
 
 ## 목적
 
 이 문서는 Zync Zone Zero의 4박 커맨드 전투 규칙을 고정한다.
 
 이 문서의 커맨드는 예시가 아니라 1차 구현 기준의 실제 룰이다.
+
+## 전투 루프
+
+Zync는 파타퐁처럼 4박 동안 기다렸다가 다음 4박에만 행동하지 않는다.
+
+Zync의 4박 커맨드는 다음처럼 작동한다.
+
+1. 현재 4박 동안 플레이어가 커맨드를 입력한다.
+2. 각 입력은 그 박자에 즉시 행동으로 발생한다.
+3. 동시에 입력 토큰은 4칸 커맨드 버퍼에 쌓인다.
+4. 4번째 입력이 끝나면 버퍼 조합을 해석한다.
+5. 해석 결과는 다음 4박의 전투 성향, 보너스, 캐릭터 전환, 필살 여부를 결정한다.
+6. 보스는 현재 행동 중 다음 공격의 노랑/빨강 힌트를 미리 보여준다.
+7. 플레이어는 그 힌트를 보고 다음 4박 커맨드를 선택한다.
+
+커맨드 버퍼는 "나중에 실행할 명령"이 아니라 "현재 4박 동안 실제로 수행한 액션의 문장"이다.
 
 ## 핵심 수정 원칙
 
