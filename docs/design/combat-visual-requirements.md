@@ -73,7 +73,7 @@ The visual set must support these first-version commands:
 - `W T H H`: Break
 - `D T W H`: Evasive Counter
 - `T W T H`: Cross Tag Assault
-- `W H T U`: Zync Ultimate
+- `W H T H`: Zync Ultimate
 
 Each branch should eventually have a unique pose, timing accent, and hit effect.
 

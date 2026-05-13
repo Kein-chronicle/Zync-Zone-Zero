@@ -20,7 +20,7 @@ Validate whether a fixed-camera boss confrontation can feel good when combat act
 - `L`: Dodge
 - `Z`: Tag left
 - `X`: Tag right
-- `I`: Ultimate token / current prototype ultimate
+- Ultimate has no standalone key. Use the `W H T H` command phrase.
 - `M`: BGM toggle
 - `R`: Reset
 
@@ -32,7 +32,7 @@ Validate whether a fixed-camera boss confrontation can feel good when combat act
 - Enemy attacks are represented by boss action states, not falling notes.
 - Enemy attacks are split into yellow parryable attacks and red unparryable attacks.
 - Party has three characters. One is active; the other two auto-attack on rhythm.
-- Weak attack, heavy attack, dodge, tag, and ultimate are moving toward the 4-token command phrase system in `docs/rulebooks/combat-command-rulebook.md`.
+- Weak attack, heavy attack, dodge, tag, and ultimate are driven by the 4-token command phrase system in `docs/rulebooks/combat-command-rulebook.md`.
 - Yellow attacks can be parried or dodged.
 - Red attacks must be dodged.
 - Tag during a yellow impact window switches character and parries on entry, building high Groggy.
