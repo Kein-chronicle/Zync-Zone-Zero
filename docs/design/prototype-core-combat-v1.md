@@ -32,6 +32,7 @@ Validate whether a fixed-camera boss confrontation can feel good when combat act
 - Enemy attacks are represented by boss action states, not falling notes.
 - Enemy attacks are split into yellow parryable attacks and red unparryable attacks.
 - Enemy intent now projects the next recommended 4-note command: yellow slash pushes `T W W H`, yellow thrust pushes `T W T H`, and red slam pushes `D T W H`.
+- Runtime command guides display physical keyboard keys first: `T` is shown as `Z/X`, `W` as `J`, `H` as `K`, and `D` as `L`.
 - Party has three characters. One is active; the other two auto-attack on rhythm.
 - Weak attack, heavy attack, dodge, tag, and ultimate are driven by the 4-token command phrase system in `docs/rulebooks/combat-command-rulebook.md`.
 - Yellow attacks can be parried or dodged.

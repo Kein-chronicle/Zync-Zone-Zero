@@ -347,9 +347,19 @@ function normalizeCommandToken(token: CommandToken): RuleToken {
 }
 
 function getCommandTokenLabel(token: CommandToken) {
-  return token === 'TL' ? 'T<'
-    : token === 'TR' ? 'T>'
-      : token;
+  if (token === 'W') {
+    return 'J';
+  }
+
+  if (token === 'H') {
+    return 'K';
+  }
+
+  if (token === 'D') {
+    return 'L';
+  }
+
+  return token === 'TL' ? 'Z' : 'X';
 }
 
 function getAverageGradeMultiplier(inputs: CommandInput[]) {
@@ -1784,8 +1794,8 @@ function drawAttackRead(now: number) {
       gameContext.strokeStyle = color;
       gameContext.lineWidth = 2;
       gameContext.strokeRect(x, 438, 70, 32);
-      drawText(token, x + 35, 461, 18, index === commandBuffer.length ? '#101114' : '#f0f3f7', 'center');
-      drawText(guidance.keys[index], x + 35, 489, 11, '#8a95a8', 'center');
+      drawText(guidance.keys[index], x + 35, 461, 16, index === commandBuffer.length ? '#101114' : '#f0f3f7', 'center');
+      drawText(token, x + 35, 489, 11, '#8a95a8', 'center');
     });
     drawText(guidance.response, 640, 516, 13, '#dff6ff', 'center');
   }
@@ -2092,10 +2102,13 @@ function drawHud(now: number) {
     'center',
   );
   const guidance = getAttackGuidance(guidanceAttack);
-  const commandTip = guidance
-    ? `NEXT: ${guidance.command.join(' ')}    KEYS: ${guidance.keys.join(' ')}`
-    : 'COMMANDS: T W W H / W T H H / D T W H / T W T H / W H T H    T = Z OR X';
-  drawText(commandTip, 640, 603, 12, guidance ? warningColor : '#8a95a8', 'center');
+  if (guidance) {
+    drawText(`NEXT KEYS: ${guidance.keys.join('  ')}    ${guidance.label}`, 640, 596, 13, warningColor, 'center');
+    drawText('TAG SLOT USES Z OR X', 640, 612, 10, '#8a95a8', 'center');
+  } else {
+    drawText('RUSH  Z/X J J K     BREAK  J Z/X K K     EVADE  L Z/X J K', 640, 596, 11, '#8a95a8', 'center');
+    drawText('CROSS  Z/X J Z/X K     ULT  J K Z/X K', 640, 612, 11, '#8a95a8', 'center');
+  }
 
   const banner = inBreak
     ? 'EXHAUSTED: FREE COMBO'
@@ -2106,7 +2119,7 @@ function drawHud(now: number) {
         ? 'YELLOW: TAG PARRY OR DODGE'
         : 'RED: DODGE ONLY'
       : 'NEUTRAL: BUILD RHYTHM PRESSURE';
-  drawText(banner, 640, 616, 15, warningColor, 'center');
+  drawText(banner, 640, 624, 14, warningColor, 'center');
 }
 
 function updatePhraseAction(now: number) {
