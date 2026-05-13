@@ -1213,7 +1213,7 @@ function applyAttack(action: 'weak' | 'heavy', grade: Grade, now: number, chainS
     action === 'weak' ? 0.28 : 0.34,
     0.9,
   );
-  addEffect('beatRing', 1120, 610, grade === 'PERFECT' ? '#f5c84c' : '#0fb9b1', multiplier);
+  addEffect('beatRing', 640, 560, grade === 'PERFECT' ? '#f5c84c' : '#0fb9b1', multiplier);
   addFloatingText(comboName || grade, 640, 525, comboName ? '#f5c84c' : '#f0f3f7');
   addZync(action === 'weak' ? 7 + chainStep * 1.5 : 12 + chainStep * 2, grade, now);
   score += Math.round(35 * multiplier * activeRole.score);
@@ -1263,7 +1263,7 @@ function applyUltimate(grade: Grade, now: number, phraseCast = false) {
   if (zeroCast) {
     addSpriteEffect('parryPing', 640, 410, 0.8, 0.38, 0.9);
   }
-  addEffect('beatRing', 1120, 610, '#f5c84c', 1.3 * multiplier);
+  addEffect('beatRing', 640, 560, '#f5c84c', 1.3 * multiplier);
   addFloatingText(`${activeCharacter.name} ${zeroCast ? 'ZERO ULTIMATE' : 'ULTIMATE'}`, 640, 500, zeroCast ? '#dff6ff' : '#f5c84c');
   return true;
 }
@@ -1844,20 +1844,21 @@ function drawBeatRing(now: number) {
   const beatFloat = getBeatFloat(now);
   const phase = beatFloat - Math.floor(beatFloat);
   const radius = 38 + (1 - phase) * 30;
+  const x = 640;
+  const y = 560;
 
   gameContext.strokeStyle = '#0fb9b1';
   gameContext.lineWidth = 4;
   gameContext.beginPath();
-  gameContext.arc(1120, 610, radius, 0, Math.PI * 2);
+  gameContext.arc(x, y, radius, 0, Math.PI * 2);
   gameContext.stroke();
 
   gameContext.fillStyle = '#f0f3f7';
   gameContext.beginPath();
-  gameContext.arc(1120, 610, 12, 0, Math.PI * 2);
+  gameContext.arc(x, y, 12, 0, Math.PI * 2);
   gameContext.fill();
 
-  drawText(`${bpm} BPM`, 1120, 672, 15, '#8a95a8', 'center');
-  drawText(`BGM ${bgmStatus}`, 1120, 694, 12, bgmStatus === 'ON' ? '#0fb9b1' : '#ff9f43', 'center');
+  drawText(`${bpm} BPM · BGM ${bgmStatus}`, x, y + 82, 12, bgmStatus === 'ON' ? '#0fb9b1' : '#8a95a8', 'center');
 }
 
 function drawFloatingTexts(deltaSeconds: number) {
@@ -2101,26 +2102,6 @@ function drawHud(now: number) {
   drawText('ENERGY', 1032, 188, 12, '#8a95a8');
   drawBar(1092, 180, 136, 8, energy, '#0fb9b1');
   drawText(inZeroField ? 'ZERO AUDIO BOOST' : 'ROUTE SCORE', 1032, 214, 12, inZeroField ? '#dff6ff' : '#8a95a8');
-
-  drawPanel(214, 626, 852, 64, warningColor, 0.82);
-  const commands = [
-    ['J', 'WEAK'],
-    ['K', 'HEAVY'],
-    ['L', 'DODGE'],
-    ['Z', 'TAG L'],
-    ['X', 'TAG R'],
-  ];
-  commands.forEach(([key, label], index) => {
-    const x = 256 + index * 154;
-    const keyColor = getKeyColor(key);
-    gameContext.fillStyle = '#1b222d';
-    gameContext.fillRect(x, 642, 126, 30);
-    gameContext.strokeStyle = keyColor;
-    gameContext.lineWidth = 2;
-    gameContext.strokeRect(x, 642, 126, 30);
-    drawText(key, x + 14, 663, 18, keyColor);
-    drawText(label, x + 110, 663, 13, '#8a95a8', 'right');
-  });
 
   const bufferX = 472;
   const bufferY = 590;
