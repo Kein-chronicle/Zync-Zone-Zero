@@ -12,7 +12,7 @@ export type CharacterPose =
   | 'weak2'
   | 'weak3';
 
-export type SpriteSheetCharacterId = 'Z-01' | 'Z-02' | 'Z-03';
+export type SpriteSheetCharacterId = 'Z-02' | 'Z-03' | 'Z-04';
 
 interface SpriteFrameMeta {
   column: number;
@@ -25,41 +25,41 @@ interface SpriteFrameMeta {
 }
 
 const cellSize = 512;
-const z01Sheet = new Image();
-z01Sheet.src = '/assets/sprites/characters/z01/sheets/z01-combat-core-v3.png';
 const z02Sheet = new Image();
 z02Sheet.src = '/assets/sprites/characters/z02/sheets/z02-combat-core-v1.png';
 const z03Sheet = new Image();
 z03Sheet.src = '/assets/sprites/characters/z03/sheets/z03-combat-core-v1.png';
-const z01WalkSheet = new Image();
-z01WalkSheet.src = '/assets/sprites/characters/z01/sheets/z01-walk-north-v1.png';
+const z04Sheet = new Image();
+z04Sheet.src = '/assets/sprites/characters/z04/sheets/z04-combat-core-v1.png';
 const z02WalkSheet = new Image();
 z02WalkSheet.src = '/assets/sprites/characters/z02/sheets/z02-walk-north-v1.png';
 const z03WalkSheet = new Image();
 z03WalkSheet.src = '/assets/sprites/characters/z03/sheets/z03-walk-north-v1.png';
+const z04WalkSheet = new Image();
+z04WalkSheet.src = '/assets/sprites/characters/z04/sheets/z04-walk-north-v1.png';
 
 const characterSheets: Record<SpriteSheetCharacterId, HTMLImageElement> = {
-  'Z-01': z01Sheet,
   'Z-02': z02Sheet,
   'Z-03': z03Sheet,
+  'Z-04': z04Sheet,
 };
 
 const walkSheets: Record<SpriteSheetCharacterId, HTMLImageElement> = {
-  'Z-01': z01WalkSheet,
   'Z-02': z02WalkSheet,
   'Z-03': z03WalkSheet,
+  'Z-04': z04WalkSheet,
 };
 
 const fallbackColors: Record<SpriteSheetCharacterId, string> = {
-  'Z-01': '#72e9ff',
   'Z-02': '#f5c84c',
   'Z-03': '#0fb9b1',
+  'Z-04': '#dff6ff',
 };
 
 const sourceInsets: Record<SpriteSheetCharacterId, number> = {
-  'Z-01': 4,
   'Z-02': 4,
   'Z-03': 16,
+  'Z-04': 4,
 };
 
 function frame(id: string, column: number, row: number): SpriteFrameMeta {
