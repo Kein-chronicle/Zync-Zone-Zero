@@ -32,7 +32,7 @@ z03Sheet.src = '/assets/sprites/characters/z03/sheets/z03-combat-core-v1.png';
 const z04Sheet = new Image();
 z04Sheet.src = '/assets/sprites/characters/z04/sheets/z04-combat-core-v1.png';
 const z05Sheet = new Image();
-z05Sheet.src = '/assets/sprites/characters/z05/sheets/z05-combat-core-v1.png';
+z05Sheet.src = '/assets/sprites/characters/z05/sheets/z05-combat-core-v2.png';
 const z02WalkSheet = new Image();
 z02WalkSheet.src = '/assets/sprites/characters/z02/sheets/z02-walk-north-v1.png';
 const z03WalkSheet = new Image();
@@ -40,7 +40,7 @@ z03WalkSheet.src = '/assets/sprites/characters/z03/sheets/z03-walk-north-v1.png'
 const z04WalkSheet = new Image();
 z04WalkSheet.src = '/assets/sprites/characters/z04/sheets/z04-walk-north-v1.png';
 const z05WalkSheet = new Image();
-z05WalkSheet.src = '/assets/sprites/characters/z05/sheets/z05-walk-north-v1.png';
+z05WalkSheet.src = '/assets/sprites/characters/z05/sheets/z05-walk-north-v2.png';
 
 const characterSheets: Record<SpriteSheetCharacterId, HTMLImageElement> = {
   'Z-02': z02Sheet,

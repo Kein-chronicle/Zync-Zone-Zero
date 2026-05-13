@@ -1,13 +1,13 @@
 {
-  "id": "z05-combat-core-v1",
+  "id": "z05-combat-core-v2",
   "kind": "character",
   "sourcePromptVersion": "sprite-production-rules@character-creation-protocol",
   "conceptDocument": "docs/art/characters/z05-nangong-yu-inspired-concept.md",
-  "sourceImage": "docs/art/generated/z05-combat-core-v1-source.png",
-  "conceptImage": "docs/art/generated/z05-concept-v1-source.png",
-  "walkSourceImage": "docs/art/generated/z05-walk-north-v1-source.png",
-  "runtimeImage": "public/assets/sprites/characters/z05/sheets/z05-combat-core-v1.png",
-  "walkImage": "public/assets/sprites/characters/z05/sheets/z05-walk-north-v1.png",
+  "sourceImage": "docs/art/generated/z05-combat-core-v4-source.png",
+  "conceptImage": "docs/art/generated/z05-concept-v2-source.png",
+  "walkSourceImage": "docs/art/generated/z05-walk-north-v2-source.png",
+  "runtimeImage": "public/assets/sprites/characters/z05/sheets/z05-combat-core-v2.png",
+  "walkImage": "public/assets/sprites/characters/z05/sheets/z05-walk-north-v2.png",
   "columns": 4,
   "rows": 4,
   "sourceInset": 4,
@@ -21,11 +21,15 @@
     "Do not copy exact costume, faction marks, official symbols, story role, hairstyle cut, face, weapon design, name, or recognizable silhouette."
   ],
   "validation": [
-    "created from Z-05 locked identity, not by recoloring Z-02 or modifying another character sheet",
-    "transparent runtime background generated directly with no grid or chroma residue",
+    "created through image generation from Z-05 locked identity, not by procedural primitive drawing",
+    "previous code-drawn prototype asset removed from active runtime",
+    "source images preserved under docs/art/generated before cleanup",
+    "green chroma-key background removed after source preservation",
+    "no visible grid lines, frame numbers, labels, or UI fragments remain in runtime sheets",
     "combat sheet normalized to 1256x1256 with 314x314 cells",
     "walk sheet normalized to 1256x314 peer runtime dimensions",
     "gauntlets and wrist emitters remain visible in idle, attack, tag, ultimate, and walk frames",
+    "sprite QA passed for combat and walk sheets",
     "runtime screenshot required before approval"
   ],
   "issues": [

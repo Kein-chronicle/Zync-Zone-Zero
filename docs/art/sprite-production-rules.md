@@ -51,6 +51,8 @@ Invalid shortcuts:
 
 - reusing `Z-01` art as a new character
 - palette shifting an existing character and calling it new
+- procedurally drawing a character from rectangles, circles, polygons, canvas primitives, SVG primitives, or hand-coded pixel blocks and calling it a generated character
+- using code-native placeholder art as the final response to a character generation request
 - adding runtime-only ears, props, or effects as a substitute for a generated character identity
 - skipping the concept document
 - skipping metadata
@@ -61,6 +63,42 @@ Allowed reuse:
 - existing renderer plumbing
 - existing frame mapping only after the new sheet is generated for the new locked identity
 - existing attack effect sheets as temporary placeholders, if the manifest marks them as placeholders
+
+## Character Generation Execution Contract
+
+When the user says "create/generate/add a character", the implementation must route through the character generation logic below.
+
+Required execution path:
+
+1. Read this rule document.
+2. Create or update the character concept document.
+3. Build the locked identity and pose plan.
+4. Use an image-generation workflow or externally created sprite artwork for concept and pose sheets.
+5. Save the original generated source image under `docs/art/generated/`.
+6. Remove chroma key or clean background only after source preservation.
+7. Normalize the runtime sheet dimensions.
+8. Run QA.
+9. Integrate the runtime sheet.
+10. Capture and review a runtime screenshot.
+
+Forbidden execution path:
+
+- Do not create final playable character art by drawing primitive shapes with Python, Canvas, SVG, CSS, or TypeScript.
+- Do not use procedural pixel blocks as a substitute for the image generation step.
+- Do not hide a placeholder behind runtime effects and call it complete.
+- Do not overwrite a previously generated character with procedural art unless the user explicitly asks for a temporary placeholder.
+
+If image generation fails or the result fails QA:
+
+1. Regenerate with a stricter prompt.
+2. Split the pose group into fewer frames.
+3. Ask for approval before falling back to placeholder art.
+
+Prototype exception:
+
+- Primitive or code-native art may be used only for throwaway mechanics tests.
+- It must be named as a placeholder in the manifest.
+- It must not be committed as the accepted result of a character generation request.
 
 ## Sprite QA Protocol
 
