@@ -422,6 +422,154 @@ assets/sprites/characters/z01/sheets/z01-combat-weak-01-v001.png
 assets/sprites/characters/z01/sheets/z01-combat-heavy-01-v001.png
 assets/sprites/characters/z01/sheets/z01-rpg-walk-v001.png
 assets/sprites/characters/z01/meta/z01-combat-weak-01-v001.ts
+assets/sprites/effects/slash/z01-slash-weak-01-v001.png
+assets/sprites/effects/projectile/magic-orb-blue-v001.png
+assets/sprites/effects/impact/boss-hit-cyan-v001.png
+assets/sprites/effects/meta/z01-slash-weak-01-v001.ts
+```
+
+## Attack Effect Sprite Rules
+
+Character sprites and attack effects are separate assets.
+
+Reason:
+
+- the boss is far from the player
+- the character weapon pose does not need to physically reach the boss
+- long slashes, beams, projectiles, and impact bursts need independent timing
+- effects can be reused across characters and attacks
+- effect sheets prevent character frames from overflowing cell boundaries
+
+Effect sheets must not include the character unless the sheet is explicitly a full-screen cut-in.
+
+### Effect Categories
+
+Use these categories first:
+
+- `slash`: sword trails, blade arcs, cross cuts, finisher cuts
+- `projectile`: magic orb, bullet, energy blade wave, thrown weapon
+- `beam`: laser, magic ray, long thrust trail
+- `impact`: boss hit burst, sparks, explosion, crack, hit stop flash
+- `parry`: guard ring, parry spark, deflection flash
+- `dodge`: afterimage, dust streak, speed line
+- `buff`: aura, charge ring, rhythm pulse
+- `ultimate`: large contained finisher effect, screen-safe burst
+
+### Effect Direction Contract
+
+Main combat direction is bottom-center to top-center.
+
+Generated effects must travel or point upward toward the boss.
+
+- Slash arcs should open toward the top-center.
+- Projectiles should move from bottom-center to top-center.
+- Beams should align vertically or diagonally upward.
+- Impact effects should be centered near the boss hit point.
+- Parry effects should be centered around the player/tag-in character.
+- Dodge effects should stay near the player position and suggest lateral or backward movement only when the gameplay action requires it.
+
+Do not generate effects that read as attacking downward toward the player unless the effect is for the boss.
+
+### Effect Sheet Prompt
+
+```text
+Create a production-ready pixel-art attack effect sprite sheet.
+No character, no enemy, no weapon handle, no body parts, no text, no labels, no UI, no scenery.
+Only the visual effect.
+
+Canvas: 1024x1024.
+Layout: exactly 2 columns x 2 rows.
+Each cell: exactly 512x512 pixels.
+Keep the entire effect inside each cell with at least 48 pixels of padding.
+Use a flat solid #00ff00 chroma-key background.
+Do not use #00ff00 inside the effect.
+Keep the effect crisp, high-detail, modern pixel art, not blurry.
+
+Combat direction:
+The player is at bottom-center and the boss is at top-center.
+The effect must travel or point upward toward the top-center boss.
+
+Frame list:
+1. startup glow
+2. travel or expansion
+3. impact peak
+4. fade or recovery
+```
+
+### Sword Slash Effect Prompt
+
+```text
+Create a 2x2 frame-safe pixel-art sword slash effect sheet.
+No character and no enemy.
+Only cyan-white blade trail effects and small sparks.
+The slash direction travels upward from bottom-center toward top-center.
+The arc should imply a fast sword attack reaching a distant boss.
+All arcs, sparks, particles, and glow must stay inside each cell.
+Use #00ff00 chroma-key background.
+
+Frame list:
+1. thin startup trail
+2. wide upward slash arc
+3. bright impact slash burst
+4. fading particles
+```
+
+### Magic Projectile Effect Prompt
+
+```text
+Create a 2x2 frame-safe pixel-art magic projectile effect sheet.
+No character and no enemy.
+Only a glowing magic orb and its trail.
+The projectile travels upward from bottom-center toward top-center.
+Use a readable orb core, outer glow, trailing particles, and impact flash.
+All glow and particles must stay inside each cell.
+Use #00ff00 chroma-key background.
+
+Frame list:
+1. orb forming
+2. orb travelling upward
+3. orb impact burst
+4. fading magic particles
+```
+
+### Effect Metadata Contract
+
+```ts
+interface EffectFrameMeta {
+  id: string;
+  sheet: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  anchorX: number;
+  anchorY: number;
+  durationMs: number;
+  blendMode: 'normal' | 'screen' | 'lighter';
+  target: 'player' | 'midline' | 'boss';
+  tags: string[];
+}
+```
+
+Default anchors:
+
+- player-centered parry/dodge effects: bottom-center
+- midline travel effects: center
+- boss impact effects: center
+
+### Effect Integration Rule
+
+Character animation and effect animation are triggered together, but stored separately.
+
+Example:
+
+```ts
+const z01Weak1 = {
+  characterAnimation: 'z01_weak1',
+  effectAnimation: 'z01_slash_weak1',
+  effectTarget: 'midline',
+  hitFrame: 2,
+};
 ```
 
 ## Slice Rule
