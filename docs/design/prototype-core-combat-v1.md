@@ -28,10 +28,10 @@ Validate whether a fixed-camera boss confrontation can feel good when combat act
 
 - 100 BPM beat clock synced to the slower prototype level BGM.
 - Timing grades: Miss, Bad, Good, Perfect.
-- Boss HP, Player HP, Sync, Energy, Groggy, Score, Combo.
+- Boss HP, Player HP, Sync, Energy, Groggy, Score, Combo, and Zync Drive.
 - Enemy attacks are represented by boss action states, not falling notes.
 - Enemy attacks are split into yellow parryable attacks and red unparryable attacks.
-- Enemy intent now projects the next recommended 4-note command: yellow attacks push `T W W H`, red attacks push `D T W H`.
+- Enemy intent now projects the next recommended 4-note command: yellow slash pushes `T W W H`, yellow thrust pushes `T W T H`, and red slam pushes `D T W H`.
 - Party has three characters. One is active; the other two auto-attack on rhythm.
 - Weak attack, heavy attack, dodge, tag, and ultimate are driven by the 4-token command phrase system in `docs/rulebooks/combat-command-rulebook.md`.
 - Yellow attacks can be parried or dodged.
@@ -42,7 +42,11 @@ Validate whether a fixed-camera boss confrontation can feel good when combat act
 - Weak and heavy attacks deal beat-graded damage.
 - Groggy triggers an exhausted boss state.
 - While exhausted, the boss cannot act and becomes a free-combo damage target.
-- Characters build Groggy at different rates; current active party is Z-04, Z-05, and Z-06.
+- Characters now have combat roles: Z-04 is a Groggy/break lead, Z-05 is combo DPS, and Z-06 is Zync/Zero sustain.
+- Zync Drive is placed in the player HUD because it represents combo momentum, not boss state.
+- Filling Zync Drive enters Zero Field. Correct beat actions sustain Zero Field, while misses, off-route commands, and hits reduce stability.
+- Zero Field boosts damage/groggy, adds stronger screen feedback, raises BGM intensity, and grants one ultimate.
+- Casting the ultimate consumes Zero Field, so the loop becomes build drive, enter Zero Field, sustain it, spend the ultimate, then rebuild.
 
 ## What This Tests
 

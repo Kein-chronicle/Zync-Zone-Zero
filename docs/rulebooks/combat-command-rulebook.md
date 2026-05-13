@@ -260,6 +260,8 @@ Command:
 - 실제 태그 방향으로 선택된 캐릭터가 필살기 사용
 - 필살기 컷씬 2초 발동
 - Zync 소비 또는 Zero Field 1회 사용 처리
+- Zero Field 중 필살기를 사용하면 Zero Field는 즉시 종료된다.
+- 이후 다시 콤보와 Zync Drive를 쌓아 Zero Field에 재진입한다.
 
 조건 미충족:
 
@@ -275,17 +277,18 @@ Command:
 
 의도:
 
-- 다음 커맨드에 태그 패링을 준비하게 만든다.
+- 다음 커맨드에 태그 패링 또는 교차 태그 루트를 준비하게 만든다.
 
 권장 대응:
 
-- `W T H H`
-- `T W T H`
+- 노랑 slash: `T W W H`
+- 노랑 thrust: `T W T H`
 
 판정:
 
 - 노랑 impact와 실제 태그 토큰 타이밍이 맞으면 태그 패링
 - 맞지 않으면 일반 태그 공격
+- 힌트와 맞는 권장 커맨드를 입력하면 Route Match 보너스를 받는다.
 
 ### 빨강 힌트
 
@@ -301,6 +304,7 @@ Command:
 
 - 첫 `D`가 Good 이상이면 회피 성공
 - Perfect면 반격 보너스
+- 힌트와 다른 커맨드를 입력하면 Off Route로 처리되어 보상과 Zync Drive가 낮아진다.
 
 ## 실패 처리
 
@@ -309,6 +313,7 @@ Command:
 - 1 Miss: 콤보 보너스 50% 감소
 - 2 Miss 이상: Phrase 실패
 - 4 Miss: Broken Phrase
+- Miss, Broken Phrase, 피격은 Zync Drive 또는 Zero Field 안정성을 낮춘다.
 
 ### Bad 포함
 
@@ -319,6 +324,7 @@ Command:
 
 - 노랑 공격 대응에 실패해도 태그 자체는 진행된다.
 - 단, 태그 패링 보너스는 없다.
+- 빨강 공격에 태그를 넣으면 Tag Blocked로 처리되어 콤보 안정성이 크게 낮아진다.
 
 ## 캐릭터 특성 연결 기준
 
@@ -326,9 +332,9 @@ Command:
 
 이후 캐릭터별 특성은 다음 방식으로 붙인다.
 
-- Z-04: `Break`, `Ultimate`, Perfect 보너스 강화
-- Z-05: `Rush`, `Cross Tag Assault`, 연타 유지 보너스 강화
-- Z-06: `Evasive Counter`, 회피 안정성, 태그 보조 효과 강화
+- Z-04: Groggy/Break lead. 그로기 축적과 브레이크 압박이 강하다.
+- Z-05: Combo DPS. 데미지와 점수 보상이 강하다.
+- Z-06: Zync Core. Zync Drive 획득과 Zero Field 유지가 강하다.
 
 중요:
 

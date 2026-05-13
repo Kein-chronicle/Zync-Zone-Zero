@@ -135,11 +135,13 @@ const attackCycleBeats = 16;
 const bossMaxHp = 520;
 const zyncMax = 100;
 const zeroFieldDuration = 10;
+const zeroFieldMaxDuration = 14;
 const ultimateCutsceneDuration = 2;
 let songStartTime = performance.now() / 1000;
 const attackPattern: Array<{ move: EnemyMove; guardType: GuardType; windup: number; impact: number }> = [
   { move: 'slash', guardType: 'parryable', windup: 5, impact: 6 },
-  { move: 'slam', guardType: 'unparryable', windup: 12, impact: 13 },
+  { move: 'thrust', guardType: 'parryable', windup: 9, impact: 10 },
+  { move: 'slam', guardType: 'unparryable', windup: 13, impact: 14 },
 ];
 const characters = pixelCharacters;
 const bgm = new Audio(levelConfig.bgm);
@@ -192,6 +194,7 @@ let energy = 0;
 let zync = 0;
 let zeroFieldUntil = 0;
 let zeroUltimateAvailable = false;
+let zeroFieldStartedAt = 0;
 let groggy = 0;
 let score = 0;
 let combo = 0;
@@ -413,6 +416,39 @@ function getZyncGradeMultiplier(grade: Grade) {
   return 0;
 }
 
+function getCharacterCombatRole(characterName: string) {
+  if (characterName === 'Z-04') {
+    return {
+      damage: 1.02,
+      groggy: 1.28,
+      score: 1,
+      zeroGain: 1,
+      zeroSustain: 1.05,
+      label: 'BREAK LEAD',
+    };
+  }
+
+  if (characterName === 'Z-05') {
+    return {
+      damage: 1.22,
+      groggy: 0.92,
+      score: 1.25,
+      zeroGain: 0.95,
+      zeroSustain: 1,
+      label: 'COMBO DPS',
+    };
+  }
+
+  return {
+    damage: 0.96,
+    groggy: 1,
+    score: 1.05,
+    zeroGain: 1.32,
+    zeroSustain: 1.28,
+    label: 'ZYNC CORE',
+  };
+}
+
 function isZeroFieldActive(now = performance.now() / 1000) {
   return now < zeroFieldUntil;
 }
@@ -420,19 +456,61 @@ function isZeroFieldActive(now = performance.now() / 1000) {
 function enterZeroField(now = performance.now() / 1000) {
   zync = 0;
   zeroFieldUntil = now + zeroFieldDuration;
+  zeroFieldStartedAt = now;
   zeroUltimateAvailable = true;
   counterUntil = Math.max(counterUntil, now + 1.2);
-  addEffect('beatRing', 640, 520, '#dff6ff', 1.6);
-  addEffect('tagParryFlash', 640, 465, '#7c5cff', 1.35);
+  bgm.volume = 0.68;
+  bgm.playbackRate = 1.04;
+  addEffect('beatRing', 640, 520, '#dff6ff', 2.4);
+  addEffect('tagParryFlash', 640, 465, '#7c5cff', 2);
+  addEffect('pixelBurst', 640, 360, '#dff6ff', 2.2);
+  addSpriteEffect('parryPing', 640, 420, 1.35, 0.6, 1);
   addFloatingText('ZERO FIELD', 640, 500, '#dff6ff');
 }
 
-function addZync(points: number, grade: Grade, now = performance.now() / 1000) {
-  if (isZeroFieldActive(now) || grade === 'MISS') {
+function exitZeroField() {
+  zeroFieldUntil = 0;
+  zeroUltimateAvailable = false;
+  zeroFieldStartedAt = 0;
+  bgm.volume = 0.52;
+  bgm.playbackRate = 1;
+}
+
+function sustainZeroField(points: number, grade: Grade, now = performance.now() / 1000) {
+  if (!isZeroFieldActive(now) || grade === 'MISS') {
     return;
   }
 
-  zync = clamp(zync + points * getZyncGradeMultiplier(grade), 0, zyncMax);
+  const activeRole = getCharacterCombatRole(characters[activeCharacterIndex].name);
+  const extension = points * getZyncGradeMultiplier(grade) * activeRole.zeroSustain * 0.035;
+  zeroFieldUntil = Math.min(now + zeroFieldMaxDuration, zeroFieldUntil + extension);
+
+  if (grade === 'PERFECT') {
+    addEffect('beatRing', 640, 610, '#dff6ff', 0.7);
+  }
+}
+
+function punishComboDrop(now = performance.now() / 1000, severity = 1) {
+  zync = clamp(zync - 12 * severity, 0, zyncMax);
+  if (isZeroFieldActive(now)) {
+    zeroFieldUntil = Math.max(now, zeroFieldUntil - 1.6 * severity);
+    addEffect('warningPulse', 640, 530, '#ff5a6e', 1.2 * severity);
+    addFloatingText('ZERO STABILITY DOWN', 640, 530, '#ff5a6e');
+  }
+}
+
+function addZync(points: number, grade: Grade, now = performance.now() / 1000) {
+  if (isZeroFieldActive(now)) {
+    sustainZeroField(points, grade, now);
+    return;
+  }
+
+  if (grade === 'MISS') {
+    return;
+  }
+
+  const activeRole = getCharacterCombatRole(characters[activeCharacterIndex].name);
+  zync = clamp(zync + points * getZyncGradeMultiplier(grade) * activeRole.zeroGain, 0, zyncMax);
 
   if (zync >= zyncMax) {
     enterZeroField(now);
@@ -801,6 +879,15 @@ function getAttackGuidance(attack: EnemyAttack | undefined) {
   }
 
   if (attack.guardType === 'parryable') {
+    if (attack.move === 'thrust') {
+      return {
+        command: ['T', 'W', 'T', 'H'],
+        keys: ['Z/X', 'J', 'Z/X', 'K'],
+        label: 'CROSS TAG ROUTE',
+        response: 'Two tags catch the feint and turn it into a joint punish.',
+      };
+    }
+
     return {
       command: ['T', 'W', 'W', 'H'],
       keys: ['Z/X', 'J', 'J', 'K'],
@@ -919,6 +1006,7 @@ function resolveEnemyHits(now = performance.now() / 1000) {
       playerHp = clamp(playerHp - 10, 0, 100);
       sync = clamp(sync - 9, 0, 100);
       combo = 0;
+      punishComboDrop(now, 1.1);
       addEffect('pixelBurst', 640, 470, '#ff5a6e', 1.1);
       addFloatingText('HIT', 640, 470, '#ff5a6e');
     }
@@ -980,6 +1068,7 @@ function applyAttack(action: 'weak' | 'heavy', grade: Grade, now: number, chainS
   const inZeroField = isZeroFieldActive(now);
   const activeCharacter = characters[activeCharacterIndex];
   const activeActor = characterActors[activeCharacterIndex];
+  const activeRole = getCharacterCombatRole(activeCharacter.name);
   const comboName = getComboName();
   const energyReady = energy >= 18;
   let damage = action === 'weak' ? 0.85 : 1.8;
@@ -1031,8 +1120,8 @@ function applyAttack(action: 'weak' | 'heavy', grade: Grade, now: number, chainS
     groggyGain *= 1.55;
   }
 
-  bossHp = clamp(bossHp - damage * multiplier, 0, bossMaxHp);
-  groggy = clamp(groggy + groggyGain * multiplier * activeCharacter.groggyPower, 0, 100);
+  bossHp = clamp(bossHp - damage * multiplier * activeRole.damage, 0, bossMaxHp);
+  groggy = clamp(groggy + groggyGain * multiplier * activeCharacter.groggyPower * activeRole.groggy, 0, 100);
   energy = action === 'weak' ? clamp(energy + 6 * multiplier, 0, 100) : energy;
   activeActor.attackUntil = now + (action === 'weak' ? 0.42 : 0.56);
   activeAdvanceUntil = now + (action === 'weak' ? 0.52 : 0.66);
@@ -1076,11 +1165,13 @@ function applyAttack(action: 'weak' | 'heavy', grade: Grade, now: number, chainS
   addEffect('beatRing', 1120, 610, grade === 'PERFECT' ? '#f5c84c' : '#0fb9b1', multiplier);
   addFloatingText(comboName || grade, 640, 525, comboName ? '#f5c84c' : '#f0f3f7');
   addZync(action === 'weak' ? 7 + chainStep * 1.5 : 12 + chainStep * 2, grade, now);
+  score += Math.round(35 * multiplier * activeRole.score);
 }
 
 function applyUltimate(grade: Grade, now: number, phraseCast = false) {
   const multiplier = gradeMultiplier(grade);
   const activeCharacter = characters[activeCharacterIndex];
+  const activeRole = getCharacterCombatRole(activeCharacter.name);
   const zeroCast = isZeroFieldActive(now) && zeroUltimateAvailable;
 
   if (!zeroCast && phraseCast && zync < zyncMax) {
@@ -1100,7 +1191,7 @@ function applyUltimate(grade: Grade, now: number, phraseCast = false) {
   }
 
   if (zeroCast) {
-    zeroUltimateAvailable = false;
+    exitZeroField();
   } else if (phraseCast) {
     zync = 0;
   } else {
@@ -1111,9 +1202,9 @@ function applyUltimate(grade: Grade, now: number, phraseCast = false) {
   playSfx('ultimate', zeroCast ? 0.9 : 0.78, zeroCast ? 0.92 : 1);
   playCharacterVoice(activeCharacter.name, 0.58, zeroCast ? 0.96 : 1);
   counterUntil = now + 1.6;
-  bossHp = clamp(bossHp - (zeroCast ? bossMaxHp * 0.05 : bossMaxHp * 0.038) * multiplier, 0, bossMaxHp);
-  groggy = clamp(groggy + (zeroCast ? 30 : 18) * multiplier * activeCharacter.groggyPower, 0, 100);
-  score += Math.round((zeroCast ? 1100 : 700) * multiplier);
+  bossHp = clamp(bossHp - (zeroCast ? bossMaxHp * 0.05 : bossMaxHp * 0.038) * multiplier * activeRole.damage, 0, bossMaxHp);
+  groggy = clamp(groggy + (zeroCast ? 30 : 18) * multiplier * activeCharacter.groggyPower * activeRole.groggy, 0, 100);
+  score += Math.round((zeroCast ? 1100 : 700) * multiplier * activeRole.score);
   addEffect('tagParryFlash', 640, 410, activeCharacter.accent, 1.45 * multiplier);
   addEffect('hitSpark', 640, 255, activeCharacter.accent, 1.6 * multiplier);
   addSpriteEffect(getCharacterSpriteEffect(activeCharacter.name), 640, 360, 0.75, 0.44, 1);
@@ -1129,6 +1220,7 @@ function applyUltimate(grade: Grade, now: number, phraseCast = false) {
 function startPhraseAction(name: PhraseName, gradePower: number, now: number) {
   const currentBeat = Math.floor(getBeatFloat(now));
   const color = getPhraseColor(name);
+  const activeRole = getCharacterCombatRole(characters[activeCharacterIndex].name);
   const phraseScale = name === 'Cross Tag Assault' ? 1.35
     : name === 'Break' ? 1.18
       : name === 'Evasive Counter' ? 1.08
@@ -1147,8 +1239,8 @@ function startPhraseAction(name: PhraseName, gradePower: number, now: number) {
 
   activePhraseAction = {
     color,
-    damagePerPulse: damageBase * phraseScale * gradePower,
-    groggyPerPulse: groggyBase * phraseScale * gradePower,
+    damagePerPulse: damageBase * phraseScale * gradePower * activeRole.damage,
+    groggyPerPulse: groggyBase * phraseScale * gradePower * activeRole.groggy,
     intensity: phraseScale * Math.max(gradePower, 0.55),
     name,
     nextBeat: currentBeat + 1,
@@ -1168,6 +1260,9 @@ function resolveCommandPhrase(now: number) {
   const phraseInputs = commandBuffer.slice(0, 4);
   commandBuffer = [];
   const phraseName = getPhraseName(phraseInputs);
+  const phrasePattern = phraseInputs.map((input) => normalizeCommandToken(input.token)).join(' ');
+  const guidance = getAttackGuidance(getGuidanceAttack(now));
+  const matchesGuidance = !guidance || guidance.command.join(' ') === phrasePattern;
   const misses = countPhraseMisses(phraseInputs);
   const gradePower = Math.max(0.35, getAverageGradeMultiplier(phraseInputs));
   lastPhraseName = phraseName;
@@ -1175,6 +1270,7 @@ function resolveCommandPhrase(now: number) {
   if (misses >= 2 || phraseName === 'Broken Phrase') {
     combo = 0;
     sync = clamp(sync - 8, 0, 100);
+    punishComboDrop(now, 1.2);
     activePhraseAction = undefined;
     addEffect('warningPulse', 640, 520, '#ff5a6e', 1.4);
     addFloatingText('BROKEN PHRASE', 640, 520, '#ff5a6e');
@@ -1193,9 +1289,20 @@ function resolveCommandPhrase(now: number) {
     return;
   }
 
-  startPhraseAction(phraseName, misses > 0 ? gradePower * 0.5 : gradePower, now);
-  addZync(phraseName === 'Cross Tag Assault' ? 24 : phraseName === 'Break' ? 18 : phraseName === 'Rush' ? 14 : 10, phraseInputs[3].grade, now);
-  score += Math.round(240 * gradePower);
+  const adjustedGradePower = (misses > 0 ? gradePower * 0.5 : gradePower) * (matchesGuidance ? 1 : 0.78);
+  if (guidance && matchesGuidance) {
+    addEffect('tagParryFlash', 640, 420, '#dff6ff', 1.1);
+    addFloatingText('ROUTE MATCH', 640, 486, '#dff6ff');
+  } else if (guidance) {
+    sync = clamp(sync - 5, 0, 100);
+    punishComboDrop(now, 0.6);
+    addEffect('warningPulse', 640, 520, '#ff9f43', 0.9);
+    addFloatingText('OFF ROUTE', 640, 520, '#ff9f43');
+  }
+
+  startPhraseAction(phraseName, adjustedGradePower, now);
+  addZync((phraseName === 'Cross Tag Assault' ? 24 : phraseName === 'Break' ? 18 : phraseName === 'Rush' ? 14 : 10) * (matchesGuidance ? 1.25 : 0.65), phraseInputs[3].grade, now);
+  score += Math.round(240 * adjustedGradePower * getCharacterCombatRole(characters[activeCharacterIndex].name).score);
   activePose = phraseName === 'Break' || phraseName === 'Cross Tag Assault' ? 'heavy3' : phraseName === 'Evasive Counter' ? 'counter' : 'weak3';
   activePoseUntil = now + beatDuration * 2.2;
 }
@@ -1225,6 +1332,7 @@ function handleAction(action: Action) {
   if (grade === 'MISS') {
     combo = 0;
     sync = clamp(sync - 5, 0, 100);
+    punishComboDrop(now, 0.8);
     addEffect('pixelBurst', 640, 610, '#8a95a8', 0.65);
     addFloatingText('MISS', 640, 610, '#8a95a8');
     return;
@@ -1293,6 +1401,7 @@ function handleAction(action: Action) {
     } else if (findUnparryableTarget(now)) {
       combo = 0;
       sync = clamp(sync - 8, 0, 100);
+      punishComboDrop(now, 1);
       addEffect('warningPulse', 640, 465, '#ff5a6e', 1);
       addFloatingText('TAG BLOCKED', 640, 575, '#ff5a6e');
     } else {
@@ -1316,7 +1425,10 @@ function resetFight() {
   energy = 0;
   zync = 0;
   zeroFieldUntil = 0;
+  zeroFieldStartedAt = 0;
   zeroUltimateAvailable = false;
+  bgm.volume = 0.52;
+  bgm.playbackRate = 1;
   groggy = 0;
   score = 0;
   combo = 0;
@@ -1856,6 +1968,38 @@ function drawUltimateCutscene(now: number) {
   gameContext.restore();
 }
 
+function drawZeroFieldFeedback(now: number) {
+  if (!isZeroFieldActive(now)) {
+    return;
+  }
+
+  const elapsed = now - zeroFieldStartedAt;
+  const pulse = 0.5 + Math.max(0, Math.sin(getBeatFloat(now) * Math.PI * 2)) * 0.5;
+  const intro = clamp(1 - elapsed / 1.2, 0, 1);
+
+  gameContext.save();
+  gameContext.globalAlpha = 0.08 + pulse * 0.08 + intro * 0.18;
+  gameContext.fillStyle = '#dff6ff';
+  gameContext.fillRect(0, 0, gameCanvas.width, gameCanvas.height);
+
+  gameContext.globalAlpha = 0.18 + pulse * 0.22;
+  gameContext.strokeStyle = '#dff6ff';
+  gameContext.lineWidth = 4 + pulse * 5;
+  gameContext.strokeRect(18, 18, gameCanvas.width - 36, gameCanvas.height - 36);
+  gameContext.strokeRect(42, 42, gameCanvas.width - 84, gameCanvas.height - 84);
+
+  for (let index = 0; index < 10; index += 1) {
+    const x = 110 + index * 118 + Math.sin(elapsed * 2 + index) * 20;
+    const y = 128 + ((index * 53) % 430);
+    gameContext.globalAlpha = 0.16 + pulse * 0.18;
+    drawText('ZERO', x, y, 16 + (index % 3) * 3, index % 2 === 0 ? '#dff6ff' : '#7c5cff', 'center');
+  }
+
+  gameContext.globalAlpha = intro;
+  drawText('ZERO FIELD', 640, 188, 46, '#dff6ff', 'center');
+  gameContext.restore();
+}
+
 function drawHud(now: number) {
   const beatFloat = getBeatFloat(now);
   const inBreak = beatFloat < breakUntilBeat;
@@ -1875,7 +2019,7 @@ function drawHud(now: number) {
   drawText('HP', 292, 74, 11, '#8a95a8');
   drawText('GRG', 292, 94, 11, '#8a95a8');
 
-  drawPanel(24, 24, 218, 154, characters[activeCharacterIndex].accent, 0.78);
+  drawPanel(24, 24, 218, 210, inZeroField ? '#dff6ff' : characters[activeCharacterIndex].accent, inZeroField ? 0.95 : 0.78);
   drawText('PARTY', 42, 52, 16, '#f0f3f7');
   characters.forEach((character, index) => {
     const y = 74 + index * 30;
@@ -1886,6 +2030,18 @@ function drawHud(now: number) {
     drawText(`GRG x${character.groggyPower.toFixed(2)}`, 200, y + 13, 11, active ? character.accent : '#596171', 'right');
   });
   drawBar(42, 160, 178, 8, playerHp, '#0fb9b1');
+  const activeRole = getCharacterCombatRole(characters[activeCharacterIndex].name);
+  const zeroGaugeValue = inZeroField ? Math.min(100, (zeroRemaining / zeroFieldDuration) * 100) : zync;
+  const zeroPulse = inZeroField ? 0.5 + Math.max(0, Math.sin(beatFloat * Math.PI * 2)) * 0.5 : 0;
+  drawText(activeRole.label, 42, 184, 11, characters[activeCharacterIndex].accent);
+  drawText(inZeroField ? `ZERO ${zeroRemaining.toFixed(1)}s` : 'ZYNC DRIVE', 42, 204, 12, inZeroField ? '#dff6ff' : '#8a95a8');
+  if (inZeroField) {
+    gameContext.strokeStyle = '#dff6ff';
+    gameContext.lineWidth = 2 + zeroPulse * 3;
+    gameContext.strokeRect(38, 190, 186, 28);
+  }
+  drawBar(122, 196, 98, 10, zeroGaugeValue, inZeroField ? '#dff6ff' : '#7c5cff');
+  drawText(zeroUltimateAvailable ? 'ULT READY' : inZeroField ? 'CHAIN IT' : `${Math.floor(zync)}/${zyncMax}`, 220, 214, 10, zeroUltimateAvailable ? '#f5c84c' : inZeroField ? '#dff6ff' : '#8a95a8', 'right');
 
   drawPanel(1014, 24, 242, 206, '#7c5cff', 0.78);
   drawText('TIMING', 1032, 52, 16, '#f0f3f7');
@@ -1897,9 +2053,7 @@ function drawHud(now: number) {
   drawText(`SCORE ${score}`, 1032, 164, 15, '#f0f3f7');
   drawText('ENERGY', 1032, 188, 12, '#8a95a8');
   drawBar(1092, 180, 136, 8, energy, '#0fb9b1');
-  drawText(inZeroField ? `ZERO ${zeroRemaining.toFixed(1)}s` : 'ZYNC', 1032, 214, 12, inZeroField ? '#dff6ff' : '#8a95a8');
-  drawBar(1092, 206, 136, 8, inZeroField ? (zeroRemaining / zeroFieldDuration) * 100 : zync, inZeroField ? '#dff6ff' : '#7c5cff');
-  drawText(zeroUltimateAvailable ? 'ULT READY' : inZeroField ? 'ULT USED' : `${Math.floor(zync)}/${zyncMax}`, 1228, 214, 11, zeroUltimateAvailable ? '#f5c84c' : '#8a95a8', 'right');
+  drawText(inZeroField ? 'ZERO AUDIO BOOST' : 'ROUTE SCORE', 1032, 214, 12, inZeroField ? '#dff6ff' : '#8a95a8');
 
   drawPanel(214, 626, 852, 64, warningColor, 0.82);
   const commands = [
@@ -2033,7 +2187,8 @@ function updateSupportAttacks(now: number) {
     }
 
     if (sideGrunt) {
-      const damage = 2.6 + character.groggyPower * 0.8;
+      const role = getCharacterCombatRole(character.name);
+      const damage = (2.6 + character.groggyPower * 0.8) * role.damage;
       actor.attackUntil = now + 0.42;
       sideGrunt.hp = clamp(sideGrunt.hp - damage, 0, sideGrunt.maxHp);
       playSfx('weak', 0.16, side === 'left' ? 1.1 : 0.98);
@@ -2048,9 +2203,10 @@ function updateSupportAttacks(now: number) {
       return;
     }
 
-    supportGroggy += 0.22 * character.groggyPower;
+    const role = getCharacterCombatRole(character.name);
+    supportGroggy += 0.22 * character.groggyPower * role.groggy;
     actor.attackUntil = now + 0.42;
-    bossHp = clamp(bossHp - 0.45, 0, bossMaxHp);
+    bossHp = clamp(bossHp - 0.45 * role.damage, 0, bossMaxHp);
     playSfx('weak', 0.14, side === 'left' ? 1.08 : 0.96);
     addEffect('hitSpark', bossActor.x + (side === 'left' ? -80 : 80), bossActor.y + 34, character.accent, 0.25);
     addSpriteEffect(getCharacterSpriteEffect(character.name), bossActor.x + (side === 'left' ? -92 : 92), bossActor.y + 34, 0.38, 0.24, 0.72);
@@ -2123,8 +2279,7 @@ function update(deltaSeconds: number, now: number) {
     queuedUltimatePreviewId = undefined;
   }
   if (zeroFieldUntil > 0 && now >= zeroFieldUntil) {
-    zeroFieldUntil = 0;
-    zeroUltimateAvailable = false;
+    exitZeroField();
   }
   if (ultimateCutsceneUntil > 0 && now >= ultimateCutsceneUntil) {
     ultimateCutsceneUntil = 0;
@@ -2168,6 +2323,7 @@ function render(nowMs: number) {
   drawSpriteSheetEffects(gameContext, spriteSheetEffects, { onlyType: 'parryPing' });
   drawRhythmLane(now);
   drawBeatRing(now);
+  drawZeroFieldFeedback(now);
   drawHud(now);
   drawFloatingTexts(deltaSeconds);
   drawUltimateCutscene(now);
