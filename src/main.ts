@@ -507,15 +507,21 @@ function resetFight() {
   pixelEffects.length = 0;
 }
 
-function drawMeter(label: string, value: number, x: number, y: number, width: number, color: string) {
-  gameContext.fillStyle = '#20242b';
-  gameContext.fillRect(x, y, width, 12);
+function drawPanel(x: number, y: number, width: number, height: number, accent = '#2c313a', alpha = 0.78) {
+  gameContext.globalAlpha = alpha;
+  gameContext.fillStyle = '#111721';
+  gameContext.fillRect(x, y, width, height);
+  gameContext.globalAlpha = 1;
+  gameContext.fillStyle = accent;
+  gameContext.fillRect(x, y, 4, height);
+  gameContext.fillRect(x, y, width, 2);
+}
+
+function drawBar(x: number, y: number, width: number, height: number, value: number, color: string, back = '#20242b') {
+  gameContext.fillStyle = back;
+  gameContext.fillRect(x, y, width, height);
   gameContext.fillStyle = color;
-  gameContext.fillRect(x, y, width * clamp(value / 100, 0, 1), 12);
-  gameContext.fillStyle = '#c7cedb';
-  gameContext.font = '13px system-ui, sans-serif';
-  gameContext.textAlign = 'left';
-  gameContext.fillText(label, x, y - 8);
+  gameContext.fillRect(x, y, width * clamp(value / 100, 0, 1), height);
 }
 
 function drawText(text: string, x: number, y: number, size: number, color: string, align: CanvasTextAlign = 'left') {
@@ -650,20 +656,61 @@ function drawHud(now: number) {
   const beatFloat = getBeatFloat(now);
   const inBreak = beatFloat < breakUntilBeat;
   const result = playerHp <= 0 ? 'FAILED' : bossHp <= 0 ? 'CLEARED' : inBreak ? 'EXHAUSTED' : 'ACTION ASSAULT';
+  const activeAttack = getIncomingAttack(now);
+  const warningColor = activeAttack?.guardType === 'unparryable' ? '#ff5a6e' : activeAttack ? '#f5c84c' : '#0fb9b1';
 
-  drawText('ZYNC ZONE ZERO', 32, 44, 26, '#f0f3f7');
-  drawText(result, 32, 74, 15, inBreak ? '#f5c84c' : '#8a95a8');
+  drawPanel(292, 24, 696, 74, warningColor, 0.82);
+  drawText('CORE BRUTE', 320, 51, 18, '#f0f3f7');
+  drawText(result, 958, 51, 14, inBreak ? '#f5c84c' : '#8a95a8', 'right');
+  drawBar(320, 64, 640, 12, bossHp, '#ff5a6e');
+  drawBar(320, 84, 640, 8, groggy, '#f5c84c');
+  drawText('HP', 292, 74, 11, '#8a95a8');
+  drawText('GRG', 292, 94, 11, '#8a95a8');
 
-  drawMeter('PLAYER HP', playerHp, 32, 112, 240, '#0fb9b1');
-  drawMeter('SYNC', sync, 32, 150, 240, '#f5c84c');
-  drawMeter('ENERGY', energy, 32, 188, 240, '#7c5cff');
-  drawMeter('BOSS HP', bossHp, 1008, 112, 240, '#ff5a6e');
-  drawMeter('GROGGY', groggy, 1008, 150, 240, '#f5c84c');
+  drawPanel(24, 24, 218, 154, characters[activeCharacterIndex].accent, 0.78);
+  drawText('PARTY', 42, 52, 16, '#f0f3f7');
+  characters.forEach((character, index) => {
+    const y = 74 + index * 30;
+    const active = index === activeCharacterIndex;
+    gameContext.fillStyle = active ? character.accent : '#2a303a';
+    gameContext.fillRect(42, y, 16, 16);
+    drawText(character.name, 66, y + 13, 13, active ? '#f0f3f7' : '#8a95a8');
+    drawText(`GRG x${character.groggyPower.toFixed(2)}`, 200, y + 13, 11, active ? character.accent : '#596171', 'right');
+  });
+  drawBar(42, 160, 178, 8, playerHp, '#0fb9b1');
 
-  drawText(`SCORE ${score}`, 32, 662, 22, '#f0f3f7');
-  drawText(`COMBO ${combo} / MAX ${maxCombo}`, 32, 690, 15, '#8a95a8');
-  drawText(`${lastAction} · ${lastGrade}`, 1248, 690, 18, '#f0f3f7', 'right');
-  drawText('J Weak   K Heavy   L Dodge   ; Tag Parry   R Reset', 640, 32, 15, '#8a95a8', 'center');
+  drawPanel(1014, 24, 242, 158, '#7c5cff', 0.78);
+  drawText('TIMING', 1032, 52, 16, '#f0f3f7');
+  drawText(lastGrade, 1238, 52, 20, lastGrade === 'PERFECT' ? '#f5c84c' : '#f0f3f7', 'right');
+  drawText(lastAction, 1032, 82, 14, '#8a95a8');
+  drawText(`COMBO ${combo}`, 1032, 112, 20, '#f0f3f7');
+  drawText(`MAX ${maxCombo}`, 1238, 112, 12, '#8a95a8', 'right');
+  drawBar(1032, 132, 196, 8, sync, '#f5c84c');
+  drawText(`SCORE ${score}`, 1032, 164, 15, '#f0f3f7');
+
+  drawPanel(338, 626, 604, 64, warningColor, 0.82);
+  const commands = [
+    ['J', 'WEAK'],
+    ['K', 'HEAVY'],
+    ['L', 'DODGE'],
+    [';', 'TAG'],
+  ];
+  commands.forEach(([key, label], index) => {
+    const x = 365 + index * 142;
+    gameContext.fillStyle = '#1b222d';
+    gameContext.fillRect(x, 642, 112, 30);
+    drawText(key, x + 14, 663, 18, '#f0f3f7');
+    drawText(label, x + 96, 663, 13, '#8a95a8', 'right');
+  });
+
+  const banner = inBreak
+    ? 'EXHAUSTED: FREE COMBO'
+    : activeAttack
+      ? activeAttack.guardType === 'parryable'
+        ? 'YELLOW: TAG PARRY OR DODGE'
+        : 'RED: DODGE ONLY'
+      : 'NEUTRAL: BUILD RHYTHM PRESSURE';
+  drawText(banner, 640, 616, 15, warningColor, 'center');
 }
 
 function updateSupportAttacks(now: number) {
