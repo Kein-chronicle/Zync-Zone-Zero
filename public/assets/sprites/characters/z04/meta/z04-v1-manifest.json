@@ -22,10 +22,12 @@
   "validation": [
     "generated from Z-04 locked identity, not by recoloring Z-01",
     "green chroma-key background removed",
+    "walk sheet normalized to 1256x314 peer runtime dimensions",
+    "walk frames recomposed into 314x314 cells with full sword inside each cell",
+    "visible green fringe and tiny residue components removed",
     "runtime screenshot required before approval"
   ],
   "issues": [
-    "walk source generation included an external UI artifact; runtime walk sheet uses cropped valid character region from that generation",
     "temporary runtime frame mapping still uses shared 4x4 combat-core metadata"
   ]
 }

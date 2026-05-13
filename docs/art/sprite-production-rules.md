@@ -41,9 +41,11 @@ Required order:
 5. Write the pose group plan.
 6. Generate or acquire the concept/sprite sheet from that locked identity.
 7. Validate frame safety, background, grid removal, and weapon continuity.
-8. Register metadata.
-9. Integrate into runtime.
-10. Capture a runtime screenshot.
+8. Run sprite QA against existing character assets.
+9. If QA fails, regenerate or clean the sheet before runtime integration.
+10. Register metadata.
+11. Integrate into runtime.
+12. Capture a runtime screenshot.
 
 Invalid shortcuts:
 
@@ -52,12 +54,44 @@ Invalid shortcuts:
 - adding runtime-only ears, props, or effects as a substitute for a generated character identity
 - skipping the concept document
 - skipping metadata
+- integrating a sheet before checking grid lines, scale parity, and cropped weapons
 
 Allowed reuse:
 
 - existing renderer plumbing
 - existing frame mapping only after the new sheet is generated for the new locked identity
 - existing attack effect sheets as temporary placeholders, if the manifest marks them as placeholders
+
+## Sprite QA Protocol
+
+Before any generated character sheet is added to the game, run a QA pass against the existing playable character assets.
+
+Required checks:
+
+- **Grid check:** inspect the generated sheet and the runtime alpha PNG for visible cell borders, white guide lines, leftover chroma key, UI fragments, text, numbers, labels, and watermark artifacts.
+- **Boundary check:** verify that hair, ears, weapon, cloth, tail, effects, and shadows stay inside each frame cell with padding. A weapon tip touching or leaving the source cell is a failed sheet.
+- **Scale check:** compare the generated sheet dimensions and per-frame dimensions with current runtime peers. For current walk north sheets, target parity is `1256x314` or an explicitly documented metadata override.
+- **Silhouette check:** compare rendered in-game height and width against nearby party members. The new character can be stylistically distinct, but cannot read as a giant, dwarf, stretched, or squashed sprite unless intentionally documented.
+- **Runtime check:** open the combat scene, wait until the character walks, and capture a screenshot before approval.
+
+Use the project QA script before committing runtime sprite sheets:
+
+```bash
+python3 scripts/qa_sprite_sheet.py public/assets/sprites/characters/z04/sheets/z04-walk-north-v1.png \
+  --columns 4 \
+  --rows 1 \
+  --expected-width 1256 \
+  --expected-height 314 \
+  --min-padding 2
+```
+
+If any check fails:
+
+1. Prefer regenerating the failed pose group with stricter prompt constraints.
+2. If the failure is only grid/chroma residue, remove the residue locally and re-check.
+3. If the failure is only global scale mismatch, normalize the sheet to the peer runtime dimensions and re-check.
+4. If the weapon, hair, ears, or body are cropped, do not patch around it. Regenerate with more padding.
+5. Do not commit the asset until QA passes or the manifest clearly marks the issue as a temporary prototype exception.
 
 ## Required Additions To The Proposed Flow
 
