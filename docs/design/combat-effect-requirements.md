@@ -25,6 +25,15 @@ Effects are not decoration. Effects communicate:
 
 If an effect looks good but hides the next input, it fails.
 
+## Impact Size Rule
+
+Major combat confirmations must be large enough to read without staring at the HUD.
+
+- Perfect heavy, tag parry, command phrase resolution, and phrase execution pulses should produce effects at least character-sized.
+- Cross Tag Assault, Break, Zync Ultimate, and tag parry effects may exceed character size.
+- Small sparks are allowed only for weak normal hits, support hits, or background side fights.
+- Command phrase feedback must feel like a team action, not a small hit marker.
+
 ## Timing Feedback Effects
 
 ### Miss

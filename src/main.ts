@@ -15,6 +15,9 @@ type Grade = 'MISS' | 'BAD' | 'GOOD' | 'PERFECT';
 type EnemyMove = 'slash' | 'slam' | 'thrust';
 type GuardType = 'parryable' | 'unparryable';
 type UltimateCutsceneId = 'Z-04' | 'Z-05' | 'Z-06';
+type CommandToken = 'W' | 'H' | 'D' | 'TL' | 'TR' | 'U';
+type RuleToken = 'W' | 'H' | 'D' | 'T' | 'U';
+type PhraseName = 'Free Attack' | 'Rush' | 'Break' | 'Evasive Counter' | 'Cross Tag Assault' | 'Zync Ultimate' | 'Broken Phrase' | 'Failed Ultimate';
 
 interface UltimateCutsceneStyle {
   accent: string;
@@ -35,6 +38,11 @@ interface EnemyAttack {
 interface CombatInput {
   action: Action;
   time: number;
+}
+
+interface CommandInput {
+  grade: Grade;
+  token: CommandToken;
 }
 
 interface FloatingText {
@@ -74,6 +82,17 @@ interface GruntState {
   attackPhaseUntil: number;
 }
 
+interface PhraseAction {
+  color: string;
+  damagePerPulse: number;
+  groggyPerPulse: number;
+  intensity: number;
+  name: PhraseName;
+  nextBeat: number;
+  pulseIndex: number;
+  untilBeat: number;
+}
+
 const app = document.querySelector<HTMLDivElement>('#app');
 
 if (!app) {
@@ -108,6 +127,7 @@ const gameContext = context;
 const bpm = 125;
 const beatDuration = 60 / bpm;
 const attackCycleBeats = 16;
+const bossMaxHp = 520;
 const zyncMax = 100;
 const zeroFieldDuration = 10;
 const ultimateCutsceneDuration = 2;
@@ -148,7 +168,7 @@ const keys: Record<string, Action> = {
 
 let lastFrame = performance.now() / 1000;
 let playerHp = 100;
-let bossHp = 100;
+let bossHp = bossMaxHp;
 let sync = 50;
 let energy = 0;
 let zync = 0;
@@ -181,6 +201,9 @@ let ultimateCutsceneStartedAt = 0;
 let activeUltimateCutsceneId: UltimateCutsceneId | undefined;
 let queuedUltimatePreviewId: UltimateCutsceneId | undefined;
 let bgmStatus: 'STANDBY' | 'STARTING' | 'ON' | 'PAUSED' | 'BLOCKED' = 'STANDBY';
+let commandBuffer: CommandInput[] = [];
+let activePhraseAction: PhraseAction | undefined;
+let lastPhraseName: PhraseName | 'None' = 'None';
 const bossActor: FieldActor = { attackUntil: 0, nextMoveAt: 0, x: 640, y: 340, targetX: 640, targetY: 340 };
 const characterActors: FieldActor[] = [
   { attackUntil: 0, nextMoveAt: 0, x: 640, y: 585, targetX: 640, targetY: 585 },
@@ -272,6 +295,89 @@ function gradeMultiplier(grade: Grade) {
   }
 
   return 0;
+}
+
+function actionToCommandToken(action: Action): CommandToken {
+  if (action === 'weak') {
+    return 'W';
+  }
+
+  if (action === 'heavy') {
+    return 'H';
+  }
+
+  if (action === 'dodge') {
+    return 'D';
+  }
+
+  if (action === 'tagLeft') {
+    return 'TL';
+  }
+
+  if (action === 'tagRight') {
+    return 'TR';
+  }
+
+  return 'U';
+}
+
+function normalizeCommandToken(token: CommandToken): RuleToken {
+  return token === 'TL' || token === 'TR' ? 'T' : token;
+}
+
+function getCommandTokenLabel(token: CommandToken) {
+  return token === 'TL' ? 'T<'
+    : token === 'TR' ? 'T>'
+      : token;
+}
+
+function getAverageGradeMultiplier(inputs: CommandInput[]) {
+  if (inputs.length === 0) {
+    return 0;
+  }
+
+  return inputs.reduce((sum, input) => sum + gradeMultiplier(input.grade), 0) / inputs.length;
+}
+
+function countPhraseMisses(inputs: CommandInput[]) {
+  return inputs.filter((input) => input.grade === 'MISS').length;
+}
+
+function getPhraseName(inputs: CommandInput[]): PhraseName {
+  const normalized = inputs.map((input) => normalizeCommandToken(input.token));
+  const pattern = normalized.join(' ');
+  const tagCount = normalized.filter((token) => token === 'T').length;
+  const ultimateCount = normalized.filter((token) => token === 'U').length;
+
+  if (tagCount >= 3 || ultimateCount >= 2) {
+    return 'Broken Phrase';
+  }
+
+  if (tagCount === 0) {
+    return 'Free Attack';
+  }
+
+  if (pattern === 'T W W H') {
+    return 'Rush';
+  }
+
+  if (pattern === 'W T H H') {
+    return 'Break';
+  }
+
+  if (pattern === 'D T W H') {
+    return 'Evasive Counter';
+  }
+
+  if (pattern === 'T W T H') {
+    return 'Cross Tag Assault';
+  }
+
+  if (pattern === 'W H T U') {
+    return 'Zync Ultimate';
+  }
+
+  return 'Broken Phrase';
 }
 
 function getZyncGradeMultiplier(grade: Grade) {
@@ -447,6 +553,35 @@ function addEffect(type: PixelEffect['type'], x: number, y: number, color: strin
 
 function addSpriteEffect(type: SpriteSheetEffect['type'], x: number, y: number, scale: number, duration: number, alpha = 1) {
   spriteSheetEffects.push(createSpriteSheetEffect(type, x, y, scale, duration, alpha));
+}
+
+function addCommandImpact(x: number, y: number, color: string, intensity: number) {
+  addEffect('hitSpark', x, y, color, 2.4 * intensity);
+  addEffect('slashArc', x, y + 30, color, 1.9 * intensity);
+  addEffect('pixelBurst', x, y + 12, '#dff6ff', 1.3 * intensity);
+  addEffect('tagParryFlash', x, y + 48, color, 1.55 * intensity);
+  addSpriteEffect('parryPing', x, y + 54, 1.08 + intensity * 0.18, 0.38, 0.92);
+  addSpriteEffect(getCharacterSpriteEffect(characters[activeCharacterIndex].name, intensity > 1.2 ? 'heavy' : 'weak'), x, y + 34, 1.06 + intensity * 0.12, 0.42, 0.96);
+}
+
+function getPhraseColor(name: PhraseName) {
+  if (name === 'Evasive Counter') {
+    return '#0fb9b1';
+  }
+
+  if (name === 'Break' || name === 'Zync Ultimate') {
+    return '#f5c84c';
+  }
+
+  if (name === 'Cross Tag Assault') {
+    return '#ff5aee';
+  }
+
+  if (name === 'Broken Phrase' || name === 'Failed Ultimate') {
+    return '#ff5a6e';
+  }
+
+  return characters[activeCharacterIndex].accent;
 }
 
 function getCharacterSpriteEffect(characterName: string, action: 'heavy' | 'weak' = 'weak'): SpriteSheetEffect['type'] {
@@ -776,7 +911,7 @@ function applyAttack(action: 'weak' | 'heavy', grade: Grade, now: number, chainS
     groggyGain *= 1.55;
   }
 
-  bossHp = clamp(bossHp - damage * multiplier, 0, 100);
+  bossHp = clamp(bossHp - damage * multiplier, 0, bossMaxHp);
   groggy = clamp(groggy + groggyGain * multiplier * activeCharacter.groggyPower, 0, 100);
   energy = action === 'weak' ? clamp(energy + 6 * multiplier, 0, 100) : energy;
   activeActor.attackUntil = now + (action === 'weak' ? 0.42 : 0.56);
@@ -795,6 +930,9 @@ function applyAttack(action: 'weak' | 'heavy', grade: Grade, now: number, chainS
   const activeSpriteEffect =
     getCharacterSpriteEffect(activeCharacter.name, action);
   addEffect(action === 'weak' ? 'slashArc' : 'hitSpark', 640, 265, activeEffectColor, multiplier);
+  if (grade === 'PERFECT' || action === 'heavy') {
+    addCommandImpact(640, action === 'weak' ? 320 : 300, activeEffectColor, action === 'heavy' ? 0.95 * multiplier : 0.72 * multiplier);
+  }
   addSpriteEffect(
     activeSpriteEffect,
     640,
@@ -806,12 +944,12 @@ function applyAttack(action: 'weak' | 'heavy', grade: Grade, now: number, chainS
           ? 395
           : 365,
     activeCharacter.name === 'Z-02' || activeCharacter.name === 'Z-05'
-      ? 0.58
+      ? 0.76
       : activeCharacter.name === 'Z-03' || activeCharacter.name === 'Z-06'
-        ? 0.56
+        ? 0.74
         : action === 'weak'
-          ? 0.55
-          : 0.48,
+          ? 0.72
+          : 0.82,
     action === 'weak' ? 0.28 : 0.34,
     0.9,
   );
@@ -820,28 +958,38 @@ function applyAttack(action: 'weak' | 'heavy', grade: Grade, now: number, chainS
   addZync(action === 'weak' ? 7 + chainStep * 1.5 : 12 + chainStep * 2, grade, now);
 }
 
-function applyUltimate(grade: Grade, now: number) {
+function applyUltimate(grade: Grade, now: number, phraseCast = false) {
   const multiplier = gradeMultiplier(grade);
   const activeCharacter = characters[activeCharacterIndex];
   const zeroCast = isZeroFieldActive(now) && zeroUltimateAvailable;
 
-  if (!zeroCast && energy < 60) {
+  if (!zeroCast && phraseCast && zync < zyncMax) {
+    combo = 0;
+    sync = clamp(sync - 4, 0, 100);
+    addEffect('warningPulse', 640, 520, '#ff9f43', 1.2);
+    addFloatingText('ULT FAILED', 640, 520, '#ff9f43');
+    return false;
+  }
+
+  if (!zeroCast && !phraseCast && energy < 60) {
     combo = 0;
     sync = clamp(sync - 4, 0, 100);
     addEffect('warningPulse', 640, 520, '#ff9f43', 0.8);
     addFloatingText('ULT LOW ENERGY', 640, 520, '#ff9f43');
-    return;
+    return false;
   }
 
   if (zeroCast) {
     zeroUltimateAvailable = false;
+  } else if (phraseCast) {
+    zync = 0;
   } else {
     energy = clamp(energy - 60, 0, 100);
   }
 
   triggerUltimateCutscene(activeCharacter.name, now);
   counterUntil = now + 1.6;
-  bossHp = clamp(bossHp - (zeroCast ? 14.5 : 9.5) * multiplier, 0, 100);
+  bossHp = clamp(bossHp - (zeroCast ? bossMaxHp * 0.05 : bossMaxHp * 0.038) * multiplier, 0, bossMaxHp);
   groggy = clamp(groggy + (zeroCast ? 30 : 18) * multiplier * activeCharacter.groggyPower, 0, 100);
   score += Math.round((zeroCast ? 1100 : 700) * multiplier);
   addEffect('tagParryFlash', 640, 410, activeCharacter.accent, 1.45 * multiplier);
@@ -853,6 +1001,86 @@ function applyUltimate(grade: Grade, now: number) {
   }
   addEffect('beatRing', 1120, 610, '#f5c84c', 1.3 * multiplier);
   addFloatingText(`${activeCharacter.name} ${zeroCast ? 'ZERO ULTIMATE' : 'ULTIMATE'}`, 640, 500, zeroCast ? '#dff6ff' : '#f5c84c');
+  return true;
+}
+
+function startPhraseAction(name: PhraseName, gradePower: number, now: number) {
+  const currentBeat = Math.floor(getBeatFloat(now));
+  const color = getPhraseColor(name);
+  const phraseScale = name === 'Cross Tag Assault' ? 1.35
+    : name === 'Break' ? 1.18
+      : name === 'Evasive Counter' ? 1.08
+        : name === 'Rush' ? 1
+          : 0.58;
+  const damageBase = name === 'Cross Tag Assault' ? 4.8
+    : name === 'Break' ? 3.6
+      : name === 'Evasive Counter' ? 3.1
+        : name === 'Rush' ? 2.7
+          : 1.1;
+  const groggyBase = name === 'Break' ? 5.8
+    : name === 'Cross Tag Assault' ? 4.4
+      : name === 'Evasive Counter' ? 3.8
+        : name === 'Rush' ? 2.6
+          : 0.8;
+
+  activePhraseAction = {
+    color,
+    damagePerPulse: damageBase * phraseScale * gradePower,
+    groggyPerPulse: groggyBase * phraseScale * gradePower,
+    intensity: phraseScale * Math.max(gradePower, 0.55),
+    name,
+    nextBeat: currentBeat + 1,
+    pulseIndex: 0,
+    untilBeat: currentBeat + 5,
+  };
+
+  counterUntil = Math.max(counterUntil, now + beatDuration * 4);
+  addCommandImpact(640, 298, color, activePhraseAction.intensity);
+  addFloatingText(name.toUpperCase(), 640, 468, color);
+}
+
+function resolveCommandPhrase(now: number) {
+  const phraseInputs = commandBuffer.slice(0, 4);
+  commandBuffer = [];
+  const phraseName = getPhraseName(phraseInputs);
+  const misses = countPhraseMisses(phraseInputs);
+  const gradePower = Math.max(0.35, getAverageGradeMultiplier(phraseInputs));
+  lastPhraseName = phraseName;
+
+  if (misses >= 2 || phraseName === 'Broken Phrase') {
+    combo = 0;
+    sync = clamp(sync - 8, 0, 100);
+    activePhraseAction = undefined;
+    addEffect('warningPulse', 640, 520, '#ff5a6e', 1.4);
+    addFloatingText('BROKEN PHRASE', 640, 520, '#ff5a6e');
+    return;
+  }
+
+  if (phraseName === 'Zync Ultimate') {
+    const bestGrade = phraseInputs.some((input) => input.grade === 'PERFECT') ? 'PERFECT'
+      : phraseInputs.some((input) => input.grade === 'GOOD') ? 'GOOD'
+        : 'BAD';
+    const cast = applyUltimate(bestGrade, now, true);
+    lastPhraseName = cast ? 'Zync Ultimate' : 'Failed Ultimate';
+    if (!cast) {
+      startPhraseAction('Failed Ultimate', 0.45, now);
+    }
+    return;
+  }
+
+  startPhraseAction(phraseName, misses > 0 ? gradePower * 0.5 : gradePower, now);
+  addZync(phraseName === 'Cross Tag Assault' ? 24 : phraseName === 'Break' ? 18 : phraseName === 'Rush' ? 14 : 10, phraseInputs[3].grade, now);
+  score += Math.round((phraseName === 'Free Attack' ? 80 : 240) * gradePower);
+  activePose = phraseName === 'Break' || phraseName === 'Cross Tag Assault' ? 'heavy3' : phraseName === 'Evasive Counter' ? 'counter' : 'weak3';
+  activePoseUntil = now + beatDuration * 2.2;
+}
+
+function recordCommandInput(action: Action, grade: Grade, now: number) {
+  commandBuffer.push({ grade, token: actionToCommandToken(action) });
+
+  if (commandBuffer.length >= 4) {
+    resolveCommandPhrase(now);
+  }
 }
 
 function handleAction(action: Action) {
@@ -867,6 +1095,7 @@ function handleAction(action: Action) {
   lastGrade = grade;
   lastAction = action.toUpperCase();
   pushInput(action, now);
+  recordCommandInput(action, grade, now);
 
   if (grade === 'MISS') {
     combo = 0;
@@ -925,9 +1154,10 @@ function handleAction(action: Action) {
       groggy = clamp(groggy + 24 * multiplier * nextCharacter.groggyPower, 0, 100);
       energy = clamp(energy + 16 * multiplier, 0, 100);
       score += Math.round(280 * multiplier);
-      addEffect('tagParryFlash', 640, 465, nextCharacter.accent, multiplier);
-      addSpriteEffect('parryPing', 640, 465, 0.72, 0.34, 1);
-      addEffect('pixelBurst', 640, 300, '#f5c84c', multiplier);
+      addEffect('tagParryFlash', 640, 465, nextCharacter.accent, 2.2 * multiplier);
+      addSpriteEffect('parryPing', 640, 465, 1.24, 0.42, 1);
+      addEffect('pixelBurst', 640, 300, '#f5c84c', 1.8 * multiplier);
+      addCommandImpact(640, 360, nextCharacter.accent, 1.35 * multiplier);
       addFloatingText(`${nextCharacter.name} TAG PARRY`, 640, 465, nextCharacter.accent);
       addZync(30, grade, now);
     } else if (findUnparryableTarget(now)) {
@@ -945,8 +1175,9 @@ function handleAction(action: Action) {
 
   if (action === 'ultimate') {
     resetAttackChain();
-    setActivePose('ultimate', now, 0.8);
-    applyUltimate(grade, now);
+    setActivePose('ultimate', now, 0.34);
+    addEffect('beatRing', 640, 550, '#7c5cff', 0.9 * multiplier);
+    addFloatingText('ULT TOKEN', 640, 550, '#7c5cff');
   }
 
   if (groggy >= 100 && getBeatFloat(now) >= breakUntilBeat) {
@@ -956,7 +1187,7 @@ function handleAction(action: Action) {
 
 function resetFight() {
   playerHp = 100;
-  bossHp = 100;
+  bossHp = bossMaxHp;
   sync = 50;
   energy = 0;
   zync = 0;
@@ -984,6 +1215,9 @@ function resetFight() {
   ultimateCutsceneUntil = 0;
   ultimateCutsceneStartedAt = 0;
   activeUltimateCutsceneId = undefined;
+  activePhraseAction = undefined;
+  commandBuffer = [];
+  lastPhraseName = 'None';
   syncSongClockToBgm();
   bossActor.x = 640;
   bossActor.y = 340;
@@ -1487,7 +1721,7 @@ function drawHud(now: number) {
   drawPanel(292, 24, 696, 74, warningColor, 0.82);
   drawText('CORE BRUTE', 320, 51, 18, '#f0f3f7');
   drawText(result, 958, 51, 14, inZeroField ? '#dff6ff' : inBreak ? '#f5c84c' : '#8a95a8', 'right');
-  drawBar(320, 64, 640, 12, bossHp, '#ff5a6e');
+  drawBar(320, 64, 640, 12, (bossHp / bossMaxHp) * 100, '#ff5a6e');
   drawBar(320, 84, 640, 8, groggy, '#f5c84c');
   drawText('HP', 292, 74, 11, '#8a95a8');
   drawText('GRG', 292, 94, 11, '#8a95a8');
@@ -1535,6 +1769,27 @@ function drawHud(now: number) {
     drawText(label, x + 92, 663, 13, '#8a95a8', 'right');
   });
 
+  const bufferX = 472;
+  const bufferY = 576;
+  for (let index = 0; index < 4; index += 1) {
+    const entry = commandBuffer[index];
+    const x = bufferX + index * 86;
+    gameContext.fillStyle = entry ? '#1d2632' : '#10151d';
+    gameContext.fillRect(x, bufferY, 66, 30);
+    gameContext.strokeStyle = entry ? (entry.grade === 'PERFECT' ? '#f5c84c' : '#0fb9b1') : '#2c313a';
+    gameContext.lineWidth = 2;
+    gameContext.strokeRect(x, bufferY, 66, 30);
+    drawText(entry ? getCommandTokenLabel(entry.token) : '-', x + 33, bufferY + 21, 16, entry ? '#f0f3f7' : '#596171', 'center');
+  }
+  drawText(
+    activePhraseAction ? `EXECUTING ${activePhraseAction.name.toUpperCase()}` : `PHRASE ${lastPhraseName.toUpperCase()}`,
+    640,
+    566,
+    13,
+    activePhraseAction ? activePhraseAction.color : '#8a95a8',
+    'center',
+  );
+
   const banner = inBreak
     ? 'EXHAUSTED: FREE COMBO'
     : inZeroField
@@ -1545,6 +1800,51 @@ function drawHud(now: number) {
         : 'RED: DODGE ONLY'
       : 'NEUTRAL: BUILD RHYTHM PRESSURE';
   drawText(banner, 640, 616, 15, warningColor, 'center');
+}
+
+function updatePhraseAction(now: number) {
+  if (!activePhraseAction) {
+    return;
+  }
+
+  const currentBeat = Math.floor(getBeatFloat(now));
+  if (currentBeat >= activePhraseAction.untilBeat) {
+    activePhraseAction = undefined;
+    return;
+  }
+
+  if (currentBeat < activePhraseAction.nextBeat) {
+    return;
+  }
+
+  const pulse = activePhraseAction.pulseIndex;
+  const offset = [-132, -44, 44, 132][pulse % 4] ?? 0;
+  const y = activePhraseAction.name === 'Evasive Counter' ? 360 : activePhraseAction.name === 'Cross Tag Assault' ? 316 : 332;
+  const x = 640 + offset;
+  const activeCharacter = characters[activeCharacterIndex];
+  characterActors[activeCharacterIndex].attackUntil = now + 0.46;
+  activeAdvanceUntil = now + 0.52;
+  activeAdvanceTargetY = pulse % 2 === 0 ? 492 : 474;
+  bossHp = clamp(bossHp - activePhraseAction.damagePerPulse, 0, bossMaxHp);
+  groggy = clamp(groggy + activePhraseAction.groggyPerPulse * activeCharacter.groggyPower, 0, 100);
+  score += Math.round(80 * activePhraseAction.intensity);
+  addCommandImpact(x, y, activePhraseAction.color, activePhraseAction.intensity);
+
+  if (activePhraseAction.name === 'Cross Tag Assault' && pulse % 2 === 1) {
+    const supportIndexes = getSupportCharacterIndexes();
+    const supportIndex = supportIndexes[pulse % supportIndexes.length] ?? activeCharacterIndex;
+    const support = characters[supportIndex];
+    characterActors[supportIndex].attackUntil = now + 0.5;
+    addSpriteEffect(getCharacterSpriteEffect(support.name, 'heavy'), 640 - offset * 0.45, y + 30, 0.92, 0.36, 0.9);
+    addEffect('slashArc', 640 - offset * 0.45, y + 30, support.accent, activePhraseAction.intensity);
+  }
+
+  if (groggy >= 100 && getBeatFloat(now) >= breakUntilBeat) {
+    enterBreak(now);
+  }
+
+  activePhraseAction.pulseIndex += 1;
+  activePhraseAction.nextBeat += 1;
 }
 
 function updateSupportAttacks(now: number) {
@@ -1590,7 +1890,7 @@ function updateSupportAttacks(now: number) {
 
     supportGroggy += 0.22 * character.groggyPower;
     actor.attackUntil = now + 0.42;
-    bossHp = clamp(bossHp - 0.45, 0, 100);
+    bossHp = clamp(bossHp - 0.45, 0, bossMaxHp);
     addEffect('hitSpark', bossActor.x + (side === 'left' ? -80 : 80), bossActor.y + 34, character.accent, 0.25);
     addSpriteEffect(getCharacterSpriteEffect(character.name), bossActor.x + (side === 'left' ? -92 : 92), bossActor.y + 34, 0.38, 0.24, 0.72);
   });
@@ -1671,6 +1971,7 @@ function update(deltaSeconds: number, now: number) {
   }
   generateEnemyAttacks(beat);
   resolveEnemyHits(now);
+  updatePhraseAction(now);
   updateSupportAttacks(now);
   updateGruntAttacks(now);
   updateFieldMotion(deltaSeconds, now);
