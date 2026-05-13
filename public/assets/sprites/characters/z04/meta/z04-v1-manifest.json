@@ -1,20 +1,31 @@
 {
   "id": "z04-combat-core-v1",
   "kind": "character",
-  "sourcePromptVersion": "miyabi-reference-derived@2026-05-13",
+  "sourcePromptVersion": "sprite-production-rules@character-creation-protocol",
+  "conceptDocument": "docs/art/characters/z04-miyabi-inspired-concept.md",
   "sourceImage": "docs/art/generated/z04-combat-core-v1-source.png",
+  "walkSourceImage": "docs/art/generated/z04-walk-north-v1-source.png",
   "runtimeImage": "public/assets/sprites/characters/z04/sheets/z04-combat-core-v1.png",
   "walkImage": "public/assets/sprites/characters/z04/sheets/z04-walk-north-v1.png",
   "columns": 4,
   "rows": 4,
   "sourceInset": 4,
+  "walkColumns": 4,
+  "walkRows": 1,
+  "walkSourceInset": 0,
+  "backgroundKey": "#00ff00",
   "approved": false,
-  "conceptNotes": [
-    "Original frost katana heroine inspired by Hoshimi Miyabi reference traits without copying costume, identity, name, or exact silhouette.",
-    "Uses silver-blue frost palette, disciplined swordfighter tone, and icy slash effects."
+  "referenceExtraction": [
+    "Reference traits from Hoshimi Miyabi: disciplined frost swordswoman tone, samurai/iaido combat identity, animal-ear silhouette, cool restrained palette.",
+    "Do not copy exact costume, faction marks, hairstyle, face, weapon shape, color layout, name, story identity, or recognizable silhouette."
+  ],
+  "validation": [
+    "generated from Z-04 locked identity, not by recoloring Z-01",
+    "green chroma-key background removed",
+    "runtime screenshot required before approval"
   ],
   "issues": [
-    "prototype derivative sheet generated from approved Z-01 runtime sheet for fast gameplay validation",
-    "needs dedicated full Z-04 concept and pose generation pass if this direction is approved"
+    "walk source generation included an external UI artifact; runtime walk sheet uses cropped valid character region from that generation",
+    "temporary runtime frame mapping still uses shared 4x4 combat-core metadata"
   ]
 }

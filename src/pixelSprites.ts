@@ -51,10 +51,10 @@ function faceDetails(ctx: CanvasRenderingContext2D, scale: number, x: number, y:
 
 export const pixelCharacters: PixelCharacter[] = [
   {
-    name: 'Z-05',
+    name: 'Z-04',
     accent: '#dff6ff',
-    hair: '#161b24',
-    outfit: '#20242c',
+    hair: '#e8eef8',
+    outfit: '#202a38',
     skin: '#f0c7a7',
     weapon: '#bff8ff',
     groggyPower: 1.18,
@@ -98,7 +98,7 @@ export function drawPixelCharacter(
   ctx.translate(Math.round(x), Math.round(y));
   ctx.imageSmoothingEnabled = false;
 
-  if (character.name === 'Z-02' || character.name === 'Z-03' || character.name === 'Z-05') {
+  if (character.name === 'Z-02' || character.name === 'Z-03' || character.name === 'Z-04') {
     ctx.restore();
     drawSpriteSheetCharacter(character.name, ctx, x, y, scale, {
       active: options.active,

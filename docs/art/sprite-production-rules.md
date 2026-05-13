@@ -23,6 +23,42 @@ The production flow is:
 9. Runtime screenshot validation
 10. Regeneration or approval
 
+## Character Creation Request Protocol
+
+When the user asks to create, replace, or add a playable character, this protocol is mandatory.
+
+Do not start by recoloring, filtering, copying, or modifying an existing character sheet.
+
+Required order:
+
+1. Read this rule document.
+2. Write a character concept note before generating any sprite sheet.
+3. If the user names a reference character, write the reference extraction first:
+   - what traits are being referenced
+   - what traits must not be copied
+   - how the new character remains original
+4. Write the locked identity block using the Character Concept Definition Template.
+5. Write the pose group plan.
+6. Generate or acquire the concept/sprite sheet from that locked identity.
+7. Validate frame safety, background, grid removal, and weapon continuity.
+8. Register metadata.
+9. Integrate into runtime.
+10. Capture a runtime screenshot.
+
+Invalid shortcuts:
+
+- reusing `Z-01` art as a new character
+- palette shifting an existing character and calling it new
+- adding runtime-only ears, props, or effects as a substitute for a generated character identity
+- skipping the concept document
+- skipping metadata
+
+Allowed reuse:
+
+- existing renderer plumbing
+- existing frame mapping only after the new sheet is generated for the new locked identity
+- existing attack effect sheets as temporary placeholders, if the manifest marks them as placeholders
+
 ## Required Additions To The Proposed Flow
 
 The base process is correct, but it needs four extra control points.
