@@ -123,7 +123,13 @@ if (!canvas || !context) {
 
 const gameCanvas = canvas;
 const gameContext = context;
-const bpm = 125;
+const levelConfig = {
+  bgm: '/assets/audio/glitch-stairs-100bpm.ogg',
+  bpm: 100,
+  id: 'prototype-slower-groove',
+  title: 'Glitch Stairs',
+};
+const bpm = levelConfig.bpm;
 const beatDuration = 60 / bpm;
 const attackCycleBeats = 16;
 const bossMaxHp = 520;
@@ -136,9 +142,23 @@ const attackPattern: Array<{ move: EnemyMove; guardType: GuardType; windup: numb
   { move: 'slam', guardType: 'unparryable', windup: 12, impact: 13 },
 ];
 const characters = pixelCharacters;
-const bgm = new Audio('/assets/audio/sweet-escape-k-pop-125bpm.mp3');
+const bgm = new Audio(levelConfig.bgm);
 bgm.loop = true;
 bgm.volume = 0.52;
+const soundSources = {
+  command: '/assets/audio/sfx/command-impact.ogg',
+  dodge: '/assets/audio/sfx/dodge-swish.ogg',
+  heavy: '/assets/audio/sfx/heavy-slash.ogg',
+  parry: '/assets/audio/sfx/tag-parry.ogg',
+  ultimate: '/assets/audio/sfx/zero-ultimate.ogg',
+  weak: '/assets/audio/sfx/weak-slash.ogg',
+} as const;
+const voiceSources: Record<UltimateCutsceneId, string> = {
+  'Z-04': '/assets/audio/voice/z04-grunt.wav',
+  'Z-05': '/assets/audio/voice/z05-grunt.wav',
+  'Z-06': '/assets/audio/voice/z06-grunt.wav',
+};
+const soundPool = new Map<string, HTMLAudioElement[]>();
 const ultimateCutsceneSources: Record<UltimateCutsceneId, string> = {
   'Z-04': '/assets/cutscenes/z04-ultimate-cutscene-v001.png',
   'Z-05': '/assets/cutscenes/z05-ultimate-cutscene-v001.png',
@@ -514,6 +534,44 @@ function toggleBgm(now = performance.now() / 1000) {
 
 function isUltimateCutsceneId(name: string): name is UltimateCutsceneId {
   return name === 'Z-04' || name === 'Z-05' || name === 'Z-06';
+}
+
+function getSoundInstance(source: string) {
+  let pool = soundPool.get(source);
+
+  if (!pool) {
+    pool = Array.from({ length: 4 }, () => {
+      const audio = new Audio(source);
+      audio.preload = 'auto';
+      return audio;
+    });
+    soundPool.set(source, pool);
+  }
+
+  return pool.find((audio) => audio.paused) ?? pool[0];
+}
+
+function playAudioSource(source: string, volume = 0.65, playbackRate = 1) {
+  const audio = getSoundInstance(source);
+  audio.pause();
+  audio.currentTime = 0;
+  audio.volume = clamp(volume, 0, 1);
+  audio.playbackRate = playbackRate;
+  void audio.play().catch(() => {
+    // Browser autoplay policy can reject SFX before the first trusted input.
+  });
+}
+
+function playSfx(type: keyof typeof soundSources, volume = 0.65, playbackRate = 1) {
+  playAudioSource(soundSources[type], volume, playbackRate);
+}
+
+function playCharacterVoice(characterName: string, volume = 0.48, playbackRate = 1) {
+  if (!isUltimateCutsceneId(characterName)) {
+    return;
+  }
+
+  playAudioSource(voiceSources[characterName], volume, playbackRate);
 }
 
 function triggerUltimateCutscene(characterName: string, now: number) {
@@ -1016,6 +1074,8 @@ function applyUltimate(grade: Grade, now: number, phraseCast = false) {
   }
 
   triggerUltimateCutscene(activeCharacter.name, now);
+  playSfx('ultimate', zeroCast ? 0.9 : 0.78, zeroCast ? 0.92 : 1);
+  playCharacterVoice(activeCharacter.name, 0.58, zeroCast ? 0.96 : 1);
   counterUntil = now + 1.6;
   bossHp = clamp(bossHp - (zeroCast ? bossMaxHp * 0.05 : bossMaxHp * 0.038) * multiplier, 0, bossMaxHp);
   groggy = clamp(groggy + (zeroCast ? 30 : 18) * multiplier * activeCharacter.groggyPower, 0, 100);
@@ -1063,6 +1123,8 @@ function startPhraseAction(name: PhraseName, gradePower: number, now: number) {
   };
 
   counterUntil = Math.max(counterUntil, now + beatDuration * 4);
+  playSfx('command', 0.68, name === 'Break' ? 0.82 : name === 'Cross Tag Assault' ? 1.08 : 1);
+  playCharacterVoice(characters[activeCharacterIndex].name, name === 'Break' ? 0.52 : 0.42, name === 'Rush' ? 1.06 : 1);
   addCommandImpact(640, 298, color, activePhraseAction.intensity);
   addPhraseSignatureImpact(name, 640, 298, activePhraseAction.intensity);
   addFloatingText(name.toUpperCase(), 640, 468, color);
@@ -1143,6 +1205,8 @@ function handleAction(action: Action) {
     const attackPose = getAttackChainPose(action, now);
     const chainStep = action === 'weak' ? weakChainStep : heavyChainStep;
     setActivePose(attackPose, now, action === 'weak' ? 0.36 : 0.5);
+    playSfx(action, action === 'weak' ? 0.42 : 0.62, action === 'weak' ? 1.05 + chainStep * 0.03 : 0.88 - chainStep * 0.02);
+    playCharacterVoice(characters[activeCharacterIndex].name, action === 'weak' ? 0.32 : 0.46, action === 'weak' ? 1.04 : 0.95);
     applyAttack(action, grade, now, chainStep);
   }
 
@@ -1151,6 +1215,7 @@ function handleAction(action: Action) {
     resetAttackChain();
     setActivePose('dodge', now, 0.46);
     evasionUntil = now + (grade === 'PERFECT' ? 0.55 : 0.38);
+    playSfx('dodge', 0.35, grade === 'PERFECT' ? 1.08 : 0.98);
     addEffect('afterimage', 640, 585, '#0fb9b1', multiplier);
 
     if (target) {
@@ -1174,6 +1239,7 @@ function handleAction(action: Action) {
     const target = findParryTarget(now);
     activeCharacterIndex = nextCharacterIndex;
     setActivePose('dodge', now, target ? 0.62 : 0.42);
+    playCharacterVoice(nextCharacter.name, target ? 0.55 : 0.38, target ? 0.96 : 1.04);
 
     lastAction = `${action === 'tagLeft' ? 'TAG L' : 'TAG R'} ${nextCharacter.name}`;
 
@@ -1183,6 +1249,7 @@ function handleAction(action: Action) {
       groggy = clamp(groggy + 24 * multiplier * nextCharacter.groggyPower, 0, 100);
       energy = clamp(energy + 16 * multiplier, 0, 100);
       score += Math.round(280 * multiplier);
+      playSfx('parry', 0.78, grade === 'PERFECT' ? 1.04 : 0.94);
       addEffect('tagParryFlash', 640, 465, nextCharacter.accent, 2.2 * multiplier);
       addSpriteEffect('parryPing', 640, 465, 1.24, 0.42, 1);
       addEffect('pixelBurst', 640, 300, '#f5c84c', 1.8 * multiplier);
@@ -1196,6 +1263,7 @@ function handleAction(action: Action) {
       addFloatingText('TAG BLOCKED', 640, 575, '#ff5a6e');
     } else {
       counterUntil = now + 0.55;
+      playSfx('dodge', 0.32, 1.12);
       addEffect('beatRing', 640, 585, nextCharacter.accent, 0.85);
       addFloatingText(`${nextCharacter.name} TAG IN`, 640, 575, nextCharacter.accent);
       addZync(8, grade, now);
@@ -1850,6 +1918,11 @@ function updatePhraseAction(now: number) {
   bossHp = clamp(bossHp - activePhraseAction.damagePerPulse, 0, bossMaxHp);
   groggy = clamp(groggy + activePhraseAction.groggyPerPulse * activeCharacter.groggyPower, 0, 100);
   score += Math.round(80 * activePhraseAction.intensity);
+  playSfx(
+    activePhraseAction.name === 'Break' ? 'heavy' : activePhraseAction.name === 'Cross Tag Assault' ? 'parry' : 'command',
+    activePhraseAction.name === 'Cross Tag Assault' ? 0.58 : 0.46,
+    activePhraseAction.name === 'Rush' ? 1.12 : activePhraseAction.name === 'Break' ? 0.82 : 1,
+  );
   addCommandImpact(x, y, activePhraseAction.color, activePhraseAction.intensity);
   addPhraseSignatureImpact(activePhraseAction.name, x, y, activePhraseAction.intensity);
 
@@ -1900,6 +1973,7 @@ function updateSupportAttacks(now: number) {
       const damage = 2.6 + character.groggyPower * 0.8;
       actor.attackUntil = now + 0.42;
       sideGrunt.hp = clamp(sideGrunt.hp - damage, 0, sideGrunt.maxHp);
+      playSfx('weak', 0.16, side === 'left' ? 1.1 : 0.98);
       addEffect('hitSpark', sideGrunt.actor.x, sideGrunt.actor.y + 28, character.accent, 0.35);
       addSpriteEffect(getCharacterSpriteEffect(character.name), sideGrunt.actor.x, sideGrunt.actor.y + 18, 0.32, 0.24, 0.78);
 
@@ -1914,6 +1988,7 @@ function updateSupportAttacks(now: number) {
     supportGroggy += 0.22 * character.groggyPower;
     actor.attackUntil = now + 0.42;
     bossHp = clamp(bossHp - 0.45, 0, bossMaxHp);
+    playSfx('weak', 0.14, side === 'left' ? 1.08 : 0.96);
     addEffect('hitSpark', bossActor.x + (side === 'left' ? -80 : 80), bossActor.y + 34, character.accent, 0.25);
     addSpriteEffect(getCharacterSpriteEffect(character.name), bossActor.x + (side === 'left' ? -92 : 92), bossActor.y + 34, 0.38, 0.24, 0.72);
   });

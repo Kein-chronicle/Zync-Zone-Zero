@@ -1,6 +1,6 @@
 # BGM Source
 
-## Active Prototype BGM
+## Previous Prototype BGM
 
 - Title: `Sweet Escape | K-pop Music`
 - Artist: `kontraa`
@@ -11,6 +11,43 @@
 - Duration: `3:20`
 - Media type: `MP3`
 - Downloaded: `2026-05-13`
+- Status: replaced by the slower prototype level track below.
+
+## Active Prototype BGM
+
+- Title: `Glitch Stairs`
+- Artist: `Fupi`
+- Source: `https://opengameart.org/content/glitch-stairs`
+- License: CC0
+- Runtime file: `public/assets/audio/glitch-stairs-100bpm.ogg`
+- Tempo used by prototype: `100 BPM`
+- Duration: `1:57`
+- Media type: `OGG Vorbis`
+- Downloaded: `2026-05-13`
+
+## Active Prototype SFX
+
+- Sword attacks/clashes: `20 Sword Sound Effects (Attacks and Clashes)` by `StarNinjas`
+- Source: `https://opengameart.org/content/20-sword-sound-effects-attacks-and-clashes`
+- License: CC0
+- Runtime files:
+  - `public/assets/audio/sfx/weak-slash.ogg`
+  - `public/assets/audio/sfx/heavy-slash.ogg`
+  - `public/assets/audio/sfx/dodge-swish.ogg`
+  - `public/assets/audio/sfx/tag-parry.ogg`
+  - `public/assets/audio/sfx/command-impact.ogg`
+  - `public/assets/audio/sfx/zero-ultimate.ogg`
+
+## Active Prototype Voices
+
+- Female grunts: `Female Hurt Grunts & Groans`
+- Artist: `Nocturnal_Vanguard / AuraVoice`
+- Source: `https://opengameart.org/content/female-hurt-grunts-groans`
+- License: CC0
+- Runtime files:
+  - `public/assets/audio/voice/z04-grunt.wav`
+  - `public/assets/audio/voice/z05-grunt.wav`
+  - `public/assets/audio/voice/z06-grunt.wav`
 
 ## Runtime Contract
 

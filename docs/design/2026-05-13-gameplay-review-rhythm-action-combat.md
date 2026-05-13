@@ -143,7 +143,7 @@ Build a "one-minute fun test."
 
 Requirements:
 
-- 125 BPM BGM stays active.
+- 100 BPM BGM stays active for the slower prototype level.
 - Boss runs a 16-beat loop with three phrase types:
   - pressure opening
   - parryable multi-hit

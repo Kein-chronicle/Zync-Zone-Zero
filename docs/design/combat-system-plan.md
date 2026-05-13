@@ -48,7 +48,7 @@ Canonical command implementation rules are in `docs/rulebooks/combat-command-rul
 
 Build a single fight sandbox:
 
-- 125 BPM prototype BGM or metronome.
+- 100 BPM prototype BGM or metronome for the slower first level.
 - Boss idle plus two attack phrases.
 - Beat judgment windows.
 - Score and grade feedback.
