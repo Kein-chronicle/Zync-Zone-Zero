@@ -138,12 +138,12 @@ const ultimateCutsceneImages = Object.fromEntries(
   }),
 ) as Record<UltimateCutsceneId, HTMLImageElement>;
 const keys: Record<string, Action> = {
-  j: 'weak',
-  k: 'heavy',
-  l: 'dodge',
-  x: 'tagRight',
-  z: 'tagLeft',
-  i: 'ultimate',
+  KeyJ: 'weak',
+  KeyK: 'heavy',
+  KeyL: 'dodge',
+  KeyX: 'tagRight',
+  KeyZ: 'tagLeft',
+  KeyI: 'ultimate',
 };
 
 let lastFrame = performance.now() / 1000;
@@ -1716,17 +1716,17 @@ window.addEventListener('keydown', (event) => {
     return;
   }
 
-  if (event.key.toLowerCase() === 'm') {
+  if (event.code === 'KeyM') {
     toggleBgm();
     return;
   }
 
-  if (event.key.toLowerCase() === 'r') {
+  if (event.code === 'KeyR') {
     resetFight();
     return;
   }
 
-  const action = keys[event.key.toLowerCase()];
+  const action = keys[event.code];
 
   if (action) {
     handleAction(action);
