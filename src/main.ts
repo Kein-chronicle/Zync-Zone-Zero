@@ -10,7 +10,7 @@ import {
 } from './spriteSheetEffects';
 import type { CharacterPose } from './spriteSheetSprites';
 
-type Action = 'weak' | 'heavy' | 'dodge' | 'tag' | 'ultimate';
+type Action = 'weak' | 'heavy' | 'dodge' | 'tagLeft' | 'tagRight' | 'ultimate';
 type Grade = 'MISS' | 'BAD' | 'GOOD' | 'PERFECT';
 type EnemyMove = 'slash' | 'slam' | 'thrust';
 type GuardType = 'parryable' | 'unparryable';
@@ -50,7 +50,8 @@ app.innerHTML = `
       <button data-action="weak"><span>J</span>Weak</button>
       <button data-action="heavy"><span>K</span>Heavy</button>
       <button data-action="dodge"><span>L</span>Dodge</button>
-      <button data-action="tag"><span>;</span>Tag Parry</button>
+      <button data-action="tagLeft"><span>Z</span>Tag Left</button>
+      <button data-action="tagRight"><span>X</span>Tag Right</button>
       <button data-action="ultimate"><span>I</span>Ultimate</button>
     </div>
   </main>
@@ -77,7 +78,8 @@ const keys: Record<string, Action> = {
   j: 'weak',
   k: 'heavy',
   l: 'dodge',
-  ';': 'tag',
+  x: 'tagRight',
+  z: 'tagLeft',
   i: 'ultimate',
 };
 
@@ -310,8 +312,17 @@ function findUnparryableTarget(now = performance.now() / 1000) {
   );
 }
 
-function getNextCharacterIndex() {
-  return (activeCharacterIndex + 1) % characters.length;
+function getSupportCharacterIndexes() {
+  return characters.map((_, index) => index).filter((index) => index !== activeCharacterIndex);
+}
+
+function normalizeComboAction(action: Action) {
+  return action === 'tagLeft' || action === 'tagRight' ? 'tag' : action;
+}
+
+function getTagTargetIndex(action: Extract<Action, 'tagLeft' | 'tagRight'>) {
+  const supportIndexes = getSupportCharacterIndexes();
+  return action === 'tagLeft' ? supportIndexes[0] : supportIndexes[supportIndexes.length - 1];
 }
 
 function findDodgeTarget(now = performance.now() / 1000) {
@@ -354,7 +365,7 @@ function pushInput(action: Action, now: number) {
 }
 
 function getComboName() {
-  const recent = inputHistory.map((input) => input.action).slice(-3).join('-');
+  const recent = inputHistory.map((input) => normalizeComboAction(input.action)).slice(-3).join('-');
 
   if (recent.endsWith('weak-weak-heavy')) {
     return 'RUSH FINISH';
@@ -551,15 +562,15 @@ function handleAction(action: Action) {
     }
   }
 
-  if (action === 'tag') {
+  if (action === 'tagLeft' || action === 'tagRight') {
     resetAttackChain();
-    const nextCharacterIndex = getNextCharacterIndex();
+    const nextCharacterIndex = getTagTargetIndex(action);
     const nextCharacter = characters[nextCharacterIndex];
     const target = findParryTarget(now);
     activeCharacterIndex = nextCharacterIndex;
     setActivePose('tagParry', now, target ? 0.62 : 0.42);
 
-    lastAction = `TAG ${nextCharacter.name}`;
+    lastAction = `${action === 'tagLeft' ? 'TAG L' : 'TAG R'} ${nextCharacter.name}`;
 
     if (target) {
       target.resolved = true;
@@ -691,7 +702,8 @@ function drawParty(now: number) {
   const lean = isEvading ? -34 : 0;
   const activeCharacter = characters[activeCharacterIndex];
   const supportSlots = [500, 780];
-  const supportCharacters = characters.filter((_, index) => index !== activeCharacterIndex);
+  const supportIndexes = getSupportCharacterIndexes();
+  const supportCharacters = supportIndexes.map((index) => characters[index]);
 
   supportCharacters.forEach((character, index) => {
     const supportX = supportSlots[index];
@@ -821,20 +833,21 @@ function drawHud(now: number) {
   drawText('ENERGY', 1032, 188, 12, '#8a95a8');
   drawBar(1092, 180, 136, 8, energy, '#0fb9b1');
 
-  drawPanel(270, 626, 740, 64, warningColor, 0.82);
+  drawPanel(214, 626, 852, 64, warningColor, 0.82);
   const commands = [
     ['J', 'WEAK'],
     ['K', 'HEAVY'],
     ['L', 'DODGE'],
-    [';', 'TAG'],
+    ['Z', 'TAG L'],
+    ['X', 'TAG R'],
     ['I', 'ULT'],
   ];
   commands.forEach(([key, label], index) => {
-    const x = 295 + index * 140;
+    const x = 235 + index * 136;
     gameContext.fillStyle = '#1b222d';
-    gameContext.fillRect(x, 642, 112, 30);
+    gameContext.fillRect(x, 642, 108, 30);
     drawText(key, x + 14, 663, 18, '#f0f3f7');
-    drawText(label, x + 96, 663, 13, '#8a95a8', 'right');
+    drawText(label, x + 92, 663, 13, '#8a95a8', 'right');
   });
 
   const banner = inBreak

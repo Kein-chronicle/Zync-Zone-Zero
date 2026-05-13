@@ -44,8 +44,8 @@ body {
 
 .input-strip {
   display: grid;
-  width: min(850px, 100%);
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  width: min(960px, 100%);
+  grid-template-columns: repeat(6, minmax(0, 1fr));
   gap: 8px;
   justify-self: center;
 }
