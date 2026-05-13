@@ -37,6 +37,16 @@ interface FloatingText {
   ttl: number;
 }
 
+interface RhythmNote {
+  x: number;
+  y: number;
+  size: number;
+  drift: number;
+  phase: number;
+  color: string;
+  variant: 'eighth' | 'double' | 'diamond';
+}
+
 interface FieldActor {
   attackUntil: number;
   x: number;
@@ -160,6 +170,16 @@ const inputHistory: CombatInput[] = [];
 const floatingTexts: FloatingText[] = [];
 const pixelEffects: PixelEffect[] = [];
 const spriteSheetEffects: SpriteSheetEffect[] = [];
+const rhythmNotes: RhythmNote[] = [
+  { x: 82, y: 242, size: 16, drift: 18, phase: 0.05, color: '#0fb9b1', variant: 'eighth' },
+  { x: 142, y: 505, size: 20, drift: 22, phase: 0.58, color: '#7c5cff', variant: 'double' },
+  { x: 262, y: 172, size: 13, drift: 13, phase: 0.2, color: '#f5c84c', variant: 'diamond' },
+  { x: 1016, y: 258, size: 18, drift: 19, phase: 0.73, color: '#ff5a6e', variant: 'eighth' },
+  { x: 1158, y: 450, size: 22, drift: 24, phase: 0.36, color: '#0fb9b1', variant: 'double' },
+  { x: 940, y: 582, size: 14, drift: 16, phase: 0.84, color: '#dff6ff', variant: 'diamond' },
+  { x: 410, y: 548, size: 14, drift: 16, phase: 0.44, color: '#f5c84c', variant: 'eighth' },
+  { x: 846, y: 168, size: 12, drift: 15, phase: 0.66, color: '#7c5cff', variant: 'diamond' },
+];
 
 function getSongTime(now = performance.now() / 1000) {
   return now - startTime;
@@ -793,6 +813,92 @@ function drawText(text: string, x: number, y: number, size: number, color: strin
   gameContext.fillText(text, x, y);
 }
 
+function drawNoteHead(x: number, y: number, width: number, height: number, color: string, alpha: number) {
+  gameContext.save();
+  gameContext.translate(x, y);
+  gameContext.rotate(-0.28);
+  gameContext.globalAlpha = alpha;
+  gameContext.fillStyle = color;
+  gameContext.fillRect(Math.round(-width / 2), Math.round(-height / 2), Math.round(width), Math.round(height));
+  gameContext.globalAlpha = 1;
+  gameContext.restore();
+}
+
+function drawRhythmNote(note: RhythmNote, beatFloat: number, beatPulse: number) {
+  const local = beatFloat + note.phase;
+  const bob = Math.sin(local * Math.PI * 2) * note.drift;
+  const sway = Math.cos(local * Math.PI * 1.2) * note.drift * 0.55;
+  const pulseScale = 1 + beatPulse * 0.24 + Math.sin(local * Math.PI * 4) * 0.04;
+  const size = note.size * pulseScale;
+  const x = note.x + sway;
+  const y = note.y + bob;
+  const alpha = 0.16 + beatPulse * 0.26;
+
+  gameContext.save();
+  gameContext.shadowColor = note.color;
+  gameContext.shadowBlur = 14 + beatPulse * 18;
+  gameContext.lineWidth = Math.max(2, size * 0.12);
+  gameContext.strokeStyle = note.color;
+
+  if (note.variant === 'diamond') {
+    gameContext.globalAlpha = alpha * 0.8;
+    gameContext.fillStyle = note.color;
+    gameContext.translate(x, y);
+    gameContext.rotate(Math.PI / 4 + local * 0.08);
+    gameContext.fillRect(Math.round(-size * 0.32), Math.round(-size * 0.32), Math.round(size * 0.64), Math.round(size * 0.64));
+    gameContext.restore();
+    return;
+  }
+
+  drawNoteHead(x, y + size * 0.42, size * 0.52, size * 0.34, note.color, alpha);
+  gameContext.globalAlpha = alpha;
+  gameContext.beginPath();
+  gameContext.moveTo(x + size * 0.22, y + size * 0.32);
+  gameContext.lineTo(x + size * 0.22, y - size * 0.72);
+  gameContext.stroke();
+
+  if (note.variant === 'double') {
+    const x2 = x + size * 0.62;
+    drawNoteHead(x2, y + size * 0.3, size * 0.52, size * 0.34, note.color, alpha);
+    gameContext.beginPath();
+    gameContext.moveTo(x2 + size * 0.22, y + size * 0.2);
+    gameContext.lineTo(x2 + size * 0.22, y - size * 0.84);
+    gameContext.moveTo(x + size * 0.22, y - size * 0.72);
+    gameContext.lineTo(x2 + size * 0.22, y - size * 0.84);
+    gameContext.stroke();
+  } else {
+    gameContext.beginPath();
+    gameContext.moveTo(x + size * 0.22, y - size * 0.72);
+    gameContext.quadraticCurveTo(x + size * 0.78, y - size * 0.64, x + size * 0.7, y - size * 0.18);
+    gameContext.stroke();
+  }
+
+  gameContext.globalAlpha = 1;
+  gameContext.restore();
+}
+
+function drawRhythmAtmosphere(now: number) {
+  const beatFloat = getBeatFloat(now);
+  const beatPhase = beatFloat - Math.floor(beatFloat);
+  const beatPulse = Math.pow(1 - beatPhase, 2.6);
+
+  rhythmNotes.forEach((note) => {
+    drawRhythmNote(note, beatFloat, beatPulse);
+  });
+
+  gameContext.save();
+  gameContext.globalAlpha = 0.08 + beatPulse * 0.1;
+  gameContext.strokeStyle = '#0fb9b1';
+  gameContext.lineWidth = 2 + beatPulse * 3;
+  for (let index = 0; index < 3; index += 1) {
+    const radius = 112 + index * 52 + beatPhase * 32;
+    gameContext.beginPath();
+    gameContext.arc(640, 520, radius, Math.PI * 1.08, Math.PI * 1.92);
+    gameContext.stroke();
+  }
+  gameContext.restore();
+}
+
 function drawBoss(now: number) {
   const activeAttack = getActiveAttack(now);
   const groggyActive = isBossGroggy(now);
@@ -1134,6 +1240,7 @@ function render(nowMs: number) {
     warningColor: getActiveAttack(now)?.guardType === 'unparryable' ? '#ff5a6e' : '#0fb9b1',
   });
 
+  drawRhythmAtmosphere(now);
   drawBoss(now);
   drawAttackRead(now);
   drawSpriteSheetEffects(gameContext, spriteSheetEffects);
