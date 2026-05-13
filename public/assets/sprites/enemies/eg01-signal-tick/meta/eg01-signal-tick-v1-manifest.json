@@ -1,0 +1,15 @@
+{
+  "id": "eg01-signal-tick-core-v1",
+  "kind": "enemy",
+  "tier": "grunt",
+  "sourcePromptVersion": "enemy-production-rules@889b203",
+  "sourceImage": "docs/art/generated/eg01-signal-tick-core-v1-source.png",
+  "runtimeImage": "public/assets/sprites/enemies/eg01-signal-tick/sheets/eg01-signal-tick-core-v1.png",
+  "columns": 2,
+  "rows": 2,
+  "sourceInset": 12,
+  "backgroundKey": "#00ff00",
+  "approved": false,
+  "states": ["idle", "parryable", "groggy"],
+  "issues": ["prototype asset; needs separate movement, hit, and attack effect sheets"]
+}

@@ -1,7 +1,7 @@
 import './styles.css';
 import { createPixelEffect, drawPixelEffects, type PixelEffect, updatePixelEffects } from './pixelEffects';
 import { drawPixelCityStage } from './pixelEnvironment';
-import { coreBrutePalette, drawPixelBoss, drawPixelCharacter, pixelCharacters } from './pixelSprites';
+import { coreBrutePalette, drawPixelBoss, drawPixelCharacter, drawPixelGrunt, pixelCharacters } from './pixelSprites';
 import {
   createSpriteSheetEffect,
   drawSpriteSheetEffects,
@@ -652,6 +652,21 @@ function drawBoss(now: number) {
   const attackColor = activeAttack?.guardType === 'unparryable' ? '#ff5a6e' : '#f5c84c';
   const x = 640;
   const y = groggyActive ? 365 : activeAttack?.move === 'slam' ? 350 : 340;
+  const gruntPhase = groggyActive ? 'groggy' : activeAttack ? phase : 'idle';
+
+  drawPixelGrunt(gameContext, 'EG-01', 390, 334, 0.46, {
+    beat: getBeatFloat(now) + 0.25,
+    move: activeAttack?.move,
+    phase: activeAttack?.guardType === 'parryable' ? gruntPhase : 'idle',
+    warningColor: '#f5c84c',
+  });
+
+  drawPixelGrunt(gameContext, 'EG-02', 890, 332, 0.44, {
+    beat: getBeatFloat(now) + 0.55,
+    move: activeAttack?.move,
+    phase: activeAttack?.guardType === 'unparryable' ? gruntPhase : 'idle',
+    warningColor: '#ff5a6e',
+  });
 
   drawPixelBoss(gameContext, x, y, 1.35, coreBrutePalette, {
     beat: getBeatFloat(now),

@@ -1,4 +1,4 @@
-import { drawSpriteSheetBoss } from './bossSheetSprites';
+import { drawSpriteSheetBoss, drawSpriteSheetGrunt } from './bossSheetSprites';
 import { drawSpriteSheetCharacter, type CharacterPose } from './spriteSheetSprites';
 
 export interface PixelCharacter {
@@ -170,4 +170,18 @@ export function drawPixelBoss(
   options: BossDrawOptions,
 ) {
   drawSpriteSheetBoss(ctx, x, y, scale, palette, options);
+}
+
+export function drawPixelGrunt(
+  ctx: CanvasRenderingContext2D,
+  gruntId: 'EG-01' | 'EG-02',
+  x: number,
+  y: number,
+  scale: number,
+  options: BossDrawOptions,
+) {
+  drawSpriteSheetGrunt(ctx, gruntId, x, y, scale, {
+    beat: options.beat,
+    phase: options.phase,
+  });
 }

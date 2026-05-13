@@ -13,6 +13,10 @@ interface BossFrameMeta {
 
 const eb01Sheet = new Image();
 eb01Sheet.src = '/assets/sprites/enemies/eb01-core-brute/sheets/eb01-core-brute-combat-core-v1.png';
+const eg01Sheet = new Image();
+eg01Sheet.src = '/assets/sprites/enemies/eg01-signal-tick/sheets/eg01-signal-tick-core-v1.png';
+const eg02Sheet = new Image();
+eg02Sheet.src = '/assets/sprites/enemies/eg02-static-maw/sheets/eg02-static-maw-core-v1.png';
 
 function frame(id: string, column: number, row: number): BossFrameMeta {
   return {
@@ -130,6 +134,50 @@ export function drawSpriteSheetBoss(
     sourceCellHeight - sourceInset * 2,
     Math.round(x - drawWidth * selectedFrame.anchorX),
     Math.round(y - drawHeight * selectedFrame.anchorY),
+    Math.round(drawWidth),
+    Math.round(drawHeight),
+  );
+  ctx.restore();
+}
+
+export function drawSpriteSheetGrunt(
+  ctx: CanvasRenderingContext2D,
+  gruntId: 'EG-01' | 'EG-02',
+  x: number,
+  y: number,
+  scale: number,
+  options: {
+    beat: number;
+    phase: BossSheetPhase;
+  },
+) {
+  const sheet = gruntId === 'EG-01' ? eg01Sheet : eg02Sheet;
+
+  if (!sheet.complete || sheet.naturalWidth === 0) {
+    ctx.fillStyle = gruntId === 'EG-01' ? '#f5c84c' : '#ff5a6e';
+    ctx.fillRect(Math.round(x - 32 * scale), Math.round(y - 24 * scale), Math.round(64 * scale), Math.round(48 * scale));
+    return;
+  }
+
+  const pulse = Math.floor(options.beat * 2) % 2;
+  const column = options.phase === 'groggy' ? 1 : options.phase === 'windup' || options.phase === 'impact' ? 0 : pulse;
+  const row = options.phase === 'groggy' || options.phase === 'windup' || options.phase === 'impact' ? 1 : 0;
+  const sourceCellWidth = sheet.naturalWidth / 2;
+  const sourceCellHeight = sheet.naturalHeight / 2;
+  const sourceInset = 12;
+  const drawWidth = (sourceCellWidth - sourceInset * 2) * scale;
+  const drawHeight = (sourceCellHeight - sourceInset * 2) * scale;
+
+  ctx.save();
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(
+    sheet,
+    column * sourceCellWidth + sourceInset,
+    row * sourceCellHeight + sourceInset,
+    sourceCellWidth - sourceInset * 2,
+    sourceCellHeight - sourceInset * 2,
+    Math.round(x - drawWidth / 2),
+    Math.round(y - drawHeight * 0.78),
     Math.round(drawWidth),
     Math.round(drawHeight),
   );
