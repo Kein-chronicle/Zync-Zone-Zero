@@ -256,21 +256,121 @@ The weapon is part of the locked character identity.
 
 ### RPG Movement
 
-- stand front
-- stand back
-- stand left
-- stand right
-- walk front 4 frames
-- walk back 4 frames
-- walk left 4 frames
-- walk right 4 frames
-- run front 6 frames
-- run back 6 frames
-- run left 6 frames
-- run right 6 frames
-- turn front to side
-- turn side to back
-- stop skid
+- stand north/back
+- stand northeast
+- stand east/right
+- stand southeast
+- stand south/front
+- stand southwest
+- stand west/left
+- stand northwest
+- walk north/back 4 frames
+- walk northeast 4 frames
+- walk east/right 4 frames
+- walk southeast 4 frames
+- walk south/front 4 frames
+- walk southwest 4 frames
+- walk west/left 4 frames
+- walk northwest 4 frames
+- run north/back 6 frames
+- run northeast 6 frames
+- run east/right 6 frames
+- run southeast 6 frames
+- run south/front 6 frames
+- run southwest 6 frames
+- run west/left 6 frames
+- run northwest 6 frames
+- turn north to northeast
+- turn northeast to east
+- turn east to southeast
+- turn south to southwest
+- turn west to northwest
+- stop skid north
+- stop skid diagonal
+- stop skid side
+- stop skid south
+
+### Movement Mode Rules
+
+Separate movement sheets by gameplay context.
+
+- `combat-move`: weapon visible, battle posture, sharper acceleration
+- `rpg-move`: weapon sheathed/hidden only if the identity lock defines a sheath or hidden state
+- `lobby-move`: relaxed posture, weapon hidden or lowered according to scene rules
+
+Do not mix combat movement and lobby movement in the same sheet.
+
+### Direction Naming
+
+Use compass direction names in metadata.
+
+- `north`: character faces up/back, toward the top of the screen
+- `south`: character faces down/front, toward the camera
+- `east`: character faces right
+- `west`: character faces left
+- `northeast`: up-right diagonal
+- `northwest`: up-left diagonal
+- `southeast`: down-right diagonal
+- `southwest`: down-left diagonal
+
+For combat movement, north and north-diagonal poses are the most important because the boss is usually top-center.
+
+### Movement Animation Rules
+
+- Walk loops use 4 frames by default: contact, passing, contact opposite, passing opposite.
+- Run loops use 6 frames by default: push, airborne, contact, push opposite, airborne opposite, contact opposite.
+- Diagonal movement must not be a simple horizontal flip unless the silhouette still reads correctly.
+- Feet must stay on a consistent baseline inside each direction set.
+- Head height and body scale must stay consistent across all directions.
+- The same character identity, hairstyle, outfit, and palette must be preserved across all directions.
+- If the weapon is visible, it must remain in the correct hand and not swap sides accidentally.
+- South/front movement may show more face, but north/back and diagonal-back movement must preserve the back-view combat identity.
+- Side directions can be mirrored only when the character design is visually symmetrical enough. If the design has asymmetrical hair clips, weapon side, badges, or accessories, generate left and right separately.
+- Movement frames should not include attack trails, hit sparks, UI, labels, shadows that cross cell boundaries, or background scenery.
+
+### Movement Prompt Group
+
+Generate 8-direction movement in smaller sheets.
+
+Recommended split:
+
+- `stand`: 2x2 or 4x2
+- `walk cardinal`: 4x4
+- `walk diagonal`: 4x4
+- `run cardinal`: 4x4 or 4x2 groups
+- `run diagonal`: 4x4 or 4x2 groups
+
+Example:
+
+```text
+Create a production-ready pixel-art RPG movement sprite sheet.
+Character identity is locked.
+Canvas: 2048x2048.
+Layout: exactly 4 columns x 4 rows.
+Each cell: exactly 512x512 pixels.
+Flat solid #00ff00 chroma-key background.
+No labels, no text, no UI, no scenery.
+Keep scale, feet baseline, hairstyle, outfit, palette, and weapon visibility consistent.
+
+Movement mode: rpg-move.
+Weapon state: hidden/sheathed only if defined in the identity lock; otherwise lowered and visible.
+
+Frame list:
+1-4. walk north/back loop, 4 frames
+5-8. walk south/front loop, 4 frames
+9-12. walk east/right loop, 4 frames
+13-16. walk west/left loop, 4 frames
+```
+
+Diagonal example:
+
+```text
+Frame list:
+1-4. walk northeast loop, 4 frames
+5-8. walk northwest loop, 4 frames
+9-12. walk southeast loop, 4 frames
+13-16. walk southwest loop, 4 frames
+```
 
 ### Lobby And Interaction
 
