@@ -1066,7 +1066,6 @@ function updateGruntAttacks(now: number) {
 
     grunt.attackPhaseUntil = now + 0.42;
     grunt.actor.attackUntil = now + 0.42;
-    addEffect('warningPulse', grunt.actor.x, grunt.actor.y + 38, grunt.id === 'EG-01' ? '#f5c84c' : '#ff5a6e', 0.45);
   });
 }
 
