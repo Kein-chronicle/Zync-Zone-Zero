@@ -25,6 +25,19 @@ The production flow is:
 
 The base process is correct, but it needs four extra control points.
 
+## Combat Direction Contract
+
+The main combat camera is fixed.
+
+- The boss is at the top-center of the screen.
+- The player party stands at the bottom-center.
+- Player characters face upward toward the boss.
+- Combat sprites must use a back or three-quarter-back view by default.
+- Weak attacks, heavy attacks, dodges, guards, parries, counters, and ultimates must be aimed toward the top-center enemy position.
+- Do not generate side-facing attacks unless the pose group explicitly says left/right RPG movement.
+- Do not generate attacks that read as swinging toward the camera, toward the bottom of the screen, or sideways away from the boss.
+- Facial visibility is allowed only through a three-quarter angle. The action direction still points upward toward the enemy.
+
 ### 1. Identity Lock
 
 Before generating pose frames, define a locked character identity:
@@ -156,14 +169,29 @@ Do not change: hair shape, cyan clip, jacket silhouette, weapon type, palette
 - heavy attack charge
 - heavy attack impact
 - heavy attack recovery
+- heavy attack 2 startup
+- heavy attack 2 charge
+- heavy attack 2 impact
+- heavy attack 2 recovery
+- heavy attack 3 startup
+- heavy attack 3 charge
+- heavy attack 3 impact
+- heavy attack 3 recovery
 - dodge start
 - dodge active
 - dodge recovery
+- guard ready
+- guard impact
 - tag parry entrance
 - tag parry guard
 - tag parry impact
 - counter attack startup
 - counter attack impact
+- ultimate cut-in ready
+- ultimate startup
+- ultimate charge
+- ultimate impact
+- ultimate recovery
 - groggy punish ready
 - groggy punish impact
 - hit light
@@ -263,6 +291,10 @@ No labels, text, numbers, UI, watermark, background scenery, or extra objects.
 Flat solid chroma-key background: #00ff00.
 Do not use #00ff00 anywhere in the character.
 Keep scale, feet baseline, facing direction, and weapon design consistent.
+The boss/enemy target is fixed at the top-center of the screen.
+All combat actions must aim upward toward that top-center enemy target.
+Use back view or three-quarter-back view, not front-facing hero poses.
+Weapon arcs and body momentum should travel toward the top-center, never sideways out of the cell.
 ```
 
 Then list only one pose group.
@@ -272,9 +304,52 @@ Example:
 ```text
 Frame list:
 1. combat idle, three-quarter back view
-2. weak attack 1 startup, three-quarter back view
-3. weak attack 1 impact, three-quarter back view
-4. weak attack 1 recovery, three-quarter back view
+2. weak attack 1 startup, three-quarter back view, attack aimed upward toward top-center enemy
+3. weak attack 1 impact, three-quarter back view, weapon arc travels upward toward top-center enemy
+4. weak attack 1 recovery, three-quarter back view, returning from an upward attack
+```
+
+### Weak Combo Prompt Group
+
+```text
+Frame list:
+1. weak attack 1 startup, upward slash toward top-center enemy
+2. weak attack 1 impact, upward slash toward top-center enemy
+3. weak attack 1 recovery, back-facing stance
+4. weak attack 2 startup, different pose, upward cross-slash toward top-center enemy
+5. weak attack 2 impact, different silhouette from weak attack 1
+6. weak attack 2 recovery
+7. weak attack 3 startup, finisher windup, upward direction
+8. weak attack 3 impact, largest weak combo hit, upward toward top-center enemy
+```
+
+### Heavy Combo Prompt Group
+
+```text
+Frame list:
+1. heavy attack 1 startup, grounded upward strike toward top-center enemy
+2. heavy attack 1 charge
+3. heavy attack 1 impact
+4. heavy attack 1 recovery
+5. heavy attack 2 startup, different silhouette, upward launcher
+6. heavy attack 2 charge
+7. heavy attack 2 impact
+8. heavy attack 2 recovery
+```
+
+### Ultimate Prompt Group
+
+```text
+Create a production-ready 2x2 ultimate attack sprite sheet.
+The character faces upward toward the top-center boss.
+The ultimate is a dramatic rhythm-finisher pose with cyan-white energy, but all energy effects stay inside each cell.
+No extra enemies, no defeated bodies, no background scenery, no UI, no labels.
+
+Frame list:
+1. ultimate cut-in ready, three-quarter-back view, weapon charging upward
+2. ultimate startup, body leaning toward top-center enemy
+3. ultimate impact, large contained energy burst aimed upward
+4. ultimate recovery, back-facing stance
 ```
 
 ### Background Removal Rule

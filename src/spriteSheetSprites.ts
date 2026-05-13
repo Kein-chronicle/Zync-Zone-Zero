@@ -1,4 +1,15 @@
-export type CharacterPose = 'idle' | 'weak' | 'heavy' | 'dodge' | 'tagParry' | 'counter';
+export type CharacterPose =
+  | 'counter'
+  | 'dodge'
+  | 'heavy1'
+  | 'heavy2'
+  | 'heavy3'
+  | 'idle'
+  | 'tagParry'
+  | 'ultimate'
+  | 'weak1'
+  | 'weak2'
+  | 'weak3';
 
 interface SpriteFrameMeta {
   column: number;
@@ -50,12 +61,28 @@ function selectZ01Frame(pose: CharacterPose, beat: number, active: boolean) {
 
   const pulse = Math.floor(beat * 6) % 2;
 
-  if (pose === 'weak') {
+  if (pose === 'weak1') {
     return pulse === 0 ? z01Frames.weak1Startup : z01Frames.weak1Impact;
   }
 
-  if (pose === 'heavy') {
+  if (pose === 'weak2') {
+    return pulse === 0 ? z01Frames.weak2Startup : z01Frames.weak2Impact;
+  }
+
+  if (pose === 'weak3') {
+    return pulse === 0 ? z01Frames.weak3Startup : z01Frames.weak3Impact;
+  }
+
+  if (pose === 'heavy1') {
     return pulse === 0 ? z01Frames.heavyStartup : z01Frames.heavyImpact;
+  }
+
+  if (pose === 'heavy2') {
+    return pulse === 0 ? z01Frames.weak2Startup : z01Frames.heavyImpact;
+  }
+
+  if (pose === 'heavy3') {
+    return pulse === 0 ? z01Frames.weak3Startup : z01Frames.heavyImpact;
   }
 
   if (pose === 'dodge') {
@@ -68,6 +95,10 @@ function selectZ01Frame(pose: CharacterPose, beat: number, active: boolean) {
 
   if (pose === 'counter') {
     return pulse === 0 ? z01Frames.weak3Startup : z01Frames.weak3Impact;
+  }
+
+  if (pose === 'ultimate') {
+    return pulse === 0 ? z01Frames.tagReady : z01Frames.tagImpact;
   }
 
   return Math.floor(beat * 2) % 2 === 0 ? z01Frames.idleA : z01Frames.idleB;

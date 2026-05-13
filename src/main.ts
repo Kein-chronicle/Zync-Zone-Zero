@@ -4,7 +4,7 @@ import { drawPixelCityStage } from './pixelEnvironment';
 import { coreBrutePalette, drawPixelBoss, drawPixelCharacter, pixelCharacters } from './pixelSprites';
 import type { CharacterPose } from './spriteSheetSprites';
 
-type Action = 'weak' | 'heavy' | 'dodge' | 'tag';
+type Action = 'weak' | 'heavy' | 'dodge' | 'tag' | 'ultimate';
 type Grade = 'MISS' | 'BAD' | 'GOOD' | 'PERFECT';
 type EnemyMove = 'slash' | 'slam' | 'thrust';
 type GuardType = 'parryable' | 'unparryable';
@@ -45,6 +45,7 @@ app.innerHTML = `
       <button data-action="heavy"><span>K</span>Heavy</button>
       <button data-action="dodge"><span>L</span>Dodge</button>
       <button data-action="tag"><span>;</span>Tag Parry</button>
+      <button data-action="ultimate"><span>I</span>Ultimate</button>
     </div>
   </main>
 `;
@@ -71,6 +72,7 @@ const keys: Record<string, Action> = {
   k: 'heavy',
   l: 'dodge',
   ';': 'tag',
+  i: 'ultimate',
 };
 
 let lastFrame = performance.now() / 1000;
@@ -92,6 +94,10 @@ let counterUntil = 0;
 let activeCharacterIndex = 0;
 let activePose: CharacterPose = 'idle';
 let activePoseUntil = 0;
+let weakChainStep = 0;
+let heavyChainStep = 0;
+let lastAttackChainAction: 'weak' | 'heavy' | undefined;
+let lastAttackChainTime = 0;
 let lastSupportBeat = -1;
 const attacks: EnemyAttack[] = [];
 const inputHistory: CombatInput[] = [];
@@ -164,6 +170,28 @@ function addEffect(type: PixelEffect['type'], x: number, y: number, color: strin
 function setActivePose(pose: CharacterPose, now: number, durationSeconds: number) {
   activePose = pose;
   activePoseUntil = now + durationSeconds;
+}
+
+function getAttackChainPose(action: 'weak' | 'heavy', now: number): CharacterPose {
+  const keepChain = lastAttackChainAction === action && now - lastAttackChainTime <= 1.25;
+  lastAttackChainAction = action;
+  lastAttackChainTime = now;
+
+  if (action === 'weak') {
+    weakChainStep = keepChain ? (weakChainStep % 3) + 1 : 1;
+    heavyChainStep = 0;
+    return `weak${weakChainStep}` as CharacterPose;
+  }
+
+  heavyChainStep = keepChain ? (heavyChainStep % 3) + 1 : 1;
+  weakChainStep = 0;
+  return `heavy${heavyChainStep}` as CharacterPose;
+}
+
+function resetAttackChain() {
+  weakChainStep = 0;
+  heavyChainStep = 0;
+  lastAttackChainAction = undefined;
 }
 
 function generateEnemyAttacks(currentBeat: number) {
@@ -353,7 +381,7 @@ function enterBreak(now = performance.now() / 1000) {
   addFloatingText('EXHAUSTED', 640, 270, '#f5c84c');
 }
 
-function applyAttack(action: 'weak' | 'heavy', grade: Grade, now: number) {
+function applyAttack(action: 'weak' | 'heavy', grade: Grade, now: number, chainStep: number) {
   const beatFloat = getBeatFloat(now);
   const multiplier = gradeMultiplier(grade);
   const inBreak = beatFloat < breakUntilBeat;
@@ -363,6 +391,8 @@ function applyAttack(action: 'weak' | 'heavy', grade: Grade, now: number) {
   const energyReady = energy >= 18;
   let damage = action === 'weak' ? 0.85 : 1.8;
   let groggyGain = action === 'weak' ? 2.4 : 5.5;
+  damage *= 1 + (chainStep - 1) * 0.18;
+  groggyGain *= 1 + (chainStep - 1) * 0.22;
 
   if (action === 'heavy' && !energyReady && !inBreak) {
     damage *= 0.45;
@@ -412,6 +442,29 @@ function applyAttack(action: 'weak' | 'heavy', grade: Grade, now: number) {
   addFloatingText(comboName || grade, 640, 525, comboName ? '#f5c84c' : '#f0f3f7');
 }
 
+function applyUltimate(grade: Grade, now: number) {
+  const multiplier = gradeMultiplier(grade);
+  const activeCharacter = characters[activeCharacterIndex];
+
+  if (energy < 60) {
+    combo = 0;
+    sync = clamp(sync - 4, 0, 100);
+    addEffect('warningPulse', 640, 520, '#ff9f43', 0.8);
+    addFloatingText('ULT LOW ENERGY', 640, 520, '#ff9f43');
+    return;
+  }
+
+  energy = clamp(energy - 60, 0, 100);
+  counterUntil = now + 1.6;
+  bossHp = clamp(bossHp - 9.5 * multiplier, 0, 100);
+  groggy = clamp(groggy + 18 * multiplier * activeCharacter.groggyPower, 0, 100);
+  score += Math.round(700 * multiplier);
+  addEffect('tagParryFlash', 640, 410, activeCharacter.accent, 1.45 * multiplier);
+  addEffect('hitSpark', 640, 255, '#f5c84c', 1.6 * multiplier);
+  addEffect('beatRing', 1120, 610, '#f5c84c', 1.3 * multiplier);
+  addFloatingText(`${activeCharacter.name} ULTIMATE`, 640, 500, '#f5c84c');
+}
+
 function handleAction(action: Action) {
   if (playerHp <= 0 || bossHp <= 0) {
     return;
@@ -438,12 +491,15 @@ function handleAction(action: Action) {
   score += Math.round(90 * multiplier * (1 + combo / 45));
 
   if (action === 'weak' || action === 'heavy') {
-    setActivePose(action, now, action === 'weak' ? 0.36 : 0.48);
-    applyAttack(action, grade, now);
+    const attackPose = getAttackChainPose(action, now);
+    const chainStep = action === 'weak' ? weakChainStep : heavyChainStep;
+    setActivePose(attackPose, now, action === 'weak' ? 0.36 : 0.5);
+    applyAttack(action, grade, now, chainStep);
   }
 
   if (action === 'dodge') {
     const target = findDodgeTarget(now);
+    resetAttackChain();
     setActivePose('dodge', now, 0.46);
     evasionUntil = now + (grade === 'PERFECT' ? 0.55 : 0.38);
     addEffect('afterimage', 640, 585, '#0fb9b1', multiplier);
@@ -461,6 +517,7 @@ function handleAction(action: Action) {
   }
 
   if (action === 'tag') {
+    resetAttackChain();
     const nextCharacterIndex = getNextCharacterIndex();
     const nextCharacter = characters[nextCharacterIndex];
     const target = findParryTarget(now);
@@ -490,6 +547,12 @@ function handleAction(action: Action) {
     }
   }
 
+  if (action === 'ultimate') {
+    resetAttackChain();
+    setActivePose('ultimate', now, 0.8);
+    applyUltimate(grade, now);
+  }
+
   if (groggy >= 100 && getBeatFloat(now) >= breakUntilBeat) {
     enterBreak(now);
   }
@@ -513,6 +576,8 @@ function resetFight() {
   activeCharacterIndex = 0;
   activePose = 'idle';
   activePoseUntil = 0;
+  resetAttackChain();
+  lastAttackChainTime = 0;
   lastSupportBeat = -1;
   attacks.length = 0;
   inputHistory.length = 0;
@@ -694,7 +759,7 @@ function drawHud(now: number) {
   });
   drawBar(42, 160, 178, 8, playerHp, '#0fb9b1');
 
-  drawPanel(1014, 24, 242, 158, '#7c5cff', 0.78);
+  drawPanel(1014, 24, 242, 184, '#7c5cff', 0.78);
   drawText('TIMING', 1032, 52, 16, '#f0f3f7');
   drawText(lastGrade, 1238, 52, 20, lastGrade === 'PERFECT' ? '#f5c84c' : '#f0f3f7', 'right');
   drawText(lastAction, 1032, 82, 14, '#8a95a8');
@@ -702,16 +767,19 @@ function drawHud(now: number) {
   drawText(`MAX ${maxCombo}`, 1238, 112, 12, '#8a95a8', 'right');
   drawBar(1032, 132, 196, 8, sync, '#f5c84c');
   drawText(`SCORE ${score}`, 1032, 164, 15, '#f0f3f7');
+  drawText('ENERGY', 1032, 188, 12, '#8a95a8');
+  drawBar(1092, 180, 136, 8, energy, '#0fb9b1');
 
-  drawPanel(338, 626, 604, 64, warningColor, 0.82);
+  drawPanel(270, 626, 740, 64, warningColor, 0.82);
   const commands = [
     ['J', 'WEAK'],
     ['K', 'HEAVY'],
     ['L', 'DODGE'],
     [';', 'TAG'],
+    ['I', 'ULT'],
   ];
   commands.forEach(([key, label], index) => {
-    const x = 365 + index * 142;
+    const x = 295 + index * 140;
     gameContext.fillStyle = '#1b222d';
     gameContext.fillRect(x, 642, 112, 30);
     drawText(key, x + 14, 663, 18, '#f0f3f7');
