@@ -44,8 +44,8 @@ body {
 
 .input-strip {
   display: grid;
-  width: min(960px, 100%);
-  grid-template-columns: repeat(6, minmax(0, 1fr));
+  width: min(1080px, 100%);
+  grid-template-columns: repeat(7, minmax(0, 1fr));
   gap: 8px;
   justify-self: center;
 }
@@ -61,6 +61,15 @@ body {
 
 .input-strip button:hover {
   border-color: #0fb9b1;
+}
+
+.input-strip button[data-state="on"] {
+  border-color: #0fb9b1;
+  box-shadow: inset 0 0 0 1px rgba(15, 185, 177, 0.35);
+}
+
+.input-strip button[data-state="blocked"] {
+  border-color: #ff9f43;
 }
 
 .input-strip span {

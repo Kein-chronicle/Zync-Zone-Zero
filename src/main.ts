@@ -90,12 +90,14 @@ app.innerHTML = `
       <button data-action="tagLeft"><span>Z</span>Tag Left</button>
       <button data-action="tagRight"><span>X</span>Tag Right</button>
       <button data-action="ultimate"><span>I</span>Ultimate</button>
+      <button data-bgm-toggle><span>M</span>BGM</button>
     </div>
   </main>
 `;
 
 const canvas = document.querySelector<HTMLCanvasElement>('#game');
 const context = canvas?.getContext('2d');
+const bgmButton = document.querySelector<HTMLButtonElement>('[data-bgm-toggle]');
 
 if (!canvas || !context) {
   throw new Error('Canvas context not available');
@@ -178,6 +180,7 @@ let ultimateCutsceneUntil = 0;
 let ultimateCutsceneStartedAt = 0;
 let activeUltimateCutsceneId: UltimateCutsceneId | undefined;
 let queuedUltimatePreviewId: UltimateCutsceneId | undefined;
+let bgmStatus: 'STANDBY' | 'STARTING' | 'ON' | 'PAUSED' | 'BLOCKED' = 'STANDBY';
 const bossActor: FieldActor = { attackUntil: 0, nextMoveAt: 0, x: 640, y: 340, targetX: 640, targetY: 340 };
 const characterActors: FieldActor[] = [
   { attackUntil: 0, nextMoveAt: 0, x: 640, y: 585, targetX: 640, targetY: 585 },
@@ -361,19 +364,49 @@ function syncSongClockToBgm(now = performance.now() / 1000) {
   songStartTime = bgm.paused ? now : now - bgm.currentTime;
 }
 
+function updateBgmButton() {
+  if (!bgmButton) {
+    return;
+  }
+
+  bgmButton.dataset.state = bgmStatus.toLowerCase();
+  bgmButton.innerHTML = `<span>M</span>${bgmStatus === 'ON' ? 'BGM On' : 'BGM'}`;
+}
+
 function startBgm(now = performance.now() / 1000) {
   if (!bgm.paused) {
+    bgmStatus = 'ON';
+    updateBgmButton();
     syncSongClockToBgm(now);
     return;
   }
 
+  bgmStatus = 'STARTING';
+  updateBgmButton();
   bgm.currentTime = 0;
   songStartTime = now;
   void bgm.play().then(() => {
+    bgmStatus = 'ON';
+    updateBgmButton();
     syncSongClockToBgm();
   }).catch(() => {
+    bgmStatus = 'BLOCKED';
+    updateBgmButton();
     songStartTime = performance.now() / 1000;
+    addFloatingText('BGM BLOCKED - PRESS M', 640, 610, '#ff9f43');
   });
+}
+
+function toggleBgm(now = performance.now() / 1000) {
+  if (bgm.paused) {
+    startBgm(now);
+    return;
+  }
+
+  bgm.pause();
+  bgmStatus = 'PAUSED';
+  updateBgmButton();
+  syncSongClockToBgm(now);
 }
 
 function isUltimateCutsceneId(name: string): name is UltimateCutsceneId {
@@ -394,6 +427,19 @@ const ultimatePreviewParam = new URLSearchParams(window.location.search).get('ul
 if (ultimatePreviewParam && isUltimateCutsceneId(ultimatePreviewParam)) {
   queuedUltimatePreviewId = ultimatePreviewParam;
 }
+
+bgm.addEventListener('playing', () => {
+  bgmStatus = 'ON';
+  updateBgmButton();
+  syncSongClockToBgm();
+});
+
+bgm.addEventListener('pause', () => {
+  if (bgmStatus !== 'BLOCKED') {
+    bgmStatus = 'PAUSED';
+    updateBgmButton();
+  }
+});
 
 function addEffect(type: PixelEffect['type'], x: number, y: number, color: string, intensity = 1) {
   pixelEffects.push(createPixelEffect(type, x, y, color, intensity));
@@ -1270,7 +1316,8 @@ function drawBeatRing(now: number) {
   gameContext.arc(1120, 610, 12, 0, Math.PI * 2);
   gameContext.fill();
 
-  drawText(`${bpm} BPM`, 1120, 675, 15, '#8a95a8', 'center');
+  drawText(`${bpm} BPM`, 1120, 672, 15, '#8a95a8', 'center');
+  drawText(`BGM ${bgmStatus}`, 1120, 694, 12, bgmStatus === 'ON' ? '#0fb9b1' : '#ff9f43', 'center');
 }
 
 function drawFloatingTexts(deltaSeconds: number) {
@@ -1669,6 +1716,11 @@ window.addEventListener('keydown', (event) => {
     return;
   }
 
+  if (event.key.toLowerCase() === 'm') {
+    toggleBgm();
+    return;
+  }
+
   if (event.key.toLowerCase() === 'r') {
     resetFight();
     return;
@@ -1690,5 +1742,11 @@ document.querySelectorAll<HTMLButtonElement>('[data-action]').forEach((button) =
     }
   });
 });
+
+bgmButton?.addEventListener('click', () => {
+  toggleBgm();
+});
+
+updateBgmButton();
 
 requestAnimationFrame(render);
