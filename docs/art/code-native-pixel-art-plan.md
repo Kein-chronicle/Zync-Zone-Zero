@@ -2,16 +2,18 @@
 
 ## Decision
 
-Generated images are only for concept sheets and art direction.
+Generated images are used for concept sheets and fixed-grid animation frame sheets.
 
-Runtime characters and enemies should be built from code-native pixel sprite definitions so they stay consistent, editable, and easy to animate.
+Runtime characters and enemies should not be hand-authored as thousands of pixel rectangles unless the asset is tiny.
+
+The preferred production path is fixed-grid sprite sheets plus code metadata.
 
 ## Why
 
-- Image generation is useful for exploring style, but hard to keep consistent across every attack frame.
-- Sprite animation needs stable proportions, palette, anchor points, and frame timing.
-- Code-defined sprites can be versioned, diffed, reviewed, and tuned with gameplay.
-- The prototype can add poses faster than re-generating full sheets.
+- Image generation is useful for exploring style and pose sheets, but only if the sheet is slicing-safe.
+- Sprite animation needs stable proportions, cell bounds, anchor points, and frame timing.
+- Hand-written rectangle sprites are useful for prototypes, but too slow for detailed anime characters.
+- Code should manage metadata, animation state, frame timing, anchors, hit windows, and gameplay mapping.
 
 ## Runtime Asset Rule
 
@@ -22,13 +24,20 @@ Use generated/reference sheets for:
 - costume/weapon motifs
 - pose vocabulary
 
-Do not use generated sheets directly as final runtime sprites.
+Do not use freeform generated sheets directly as final runtime sprites.
+
+Use generated sheets only when they follow the frame-safe slicing rules in:
+
+- `docs/art/frame-safe-sprite-generation-prompt.md`
 
 Use code for:
 
-- character body blocks
-- role palettes
-- weapons
+- sprite sheet paths
+- frame rectangles
+- frame anchors
+- action state mapping
+- attack/parry/dodge timing windows
+- role palettes for UI and effects
 - support/active scale
 - boss body/core blocks
 - yellow/red attack warning parts
@@ -72,13 +81,18 @@ Current prototype usage:
 
 ## Next Step
 
-Expand frame data:
+Replace manual `PixelFrame` character construction with sliced sprite-sheet metadata:
 
 ```ts
-type PixelPart = [x: number, y: number, width: number, height: number, colorToken: string];
-
-interface PixelFrame {
-  parts: PixelPart[];
+interface SpriteFrame {
+  sheet: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  anchorX: number;
+  anchorY: number;
+  durationMs: number;
 }
 ```
 
