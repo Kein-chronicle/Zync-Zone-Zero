@@ -47,6 +47,16 @@ Current exports:
 - `drawPixelCharacter`
 - `drawPixelBoss`
 
+Character data also includes:
+
+- `groggyPower`: per-character Groggy build modifier
+
+Current Groggy direction:
+
+- Z-01: baseline
+- Z-02: high Groggy build
+- Z-03: lower Groggy build, stronger speed/counter identity later
+
 Current prototype usage:
 
 - `src/main.ts` imports those definitions.
@@ -74,4 +84,3 @@ Then define:
 - `z01.tagParry`
 - equivalent frames for Z-02 and Z-03
 - boss yellow/red windup/impact/recovery frames
-

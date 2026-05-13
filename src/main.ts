@@ -102,6 +102,10 @@ function getBeatFloat(now = performance.now() / 1000) {
   return getSongTime(now) / beatDuration;
 }
 
+function isBossGroggy(now = performance.now() / 1000) {
+  return getBeatFloat(now) < breakUntilBeat;
+}
+
 function getNearestBeatOffset(now = performance.now() / 1000) {
   const beatFloat = getBeatFloat(now);
   return beatFloat - Math.round(beatFloat);
@@ -154,6 +158,10 @@ function addEffect(type: PixelEffect['type'], x: number, y: number, color: strin
 }
 
 function generateEnemyAttacks(currentBeat: number) {
+  if (isBossGroggy()) {
+    return;
+  }
+
   const cycle = Math.floor(currentBeat / attackCycleBeats);
 
   if (generatedCycle < cycle - 1) {
@@ -166,12 +174,18 @@ function generateEnemyAttacks(currentBeat: number) {
 
   for (let nextCycle = generatedCycle + 1; nextCycle <= cycle + 2; nextCycle += 1) {
     attackPattern.forEach((pattern) => {
+      const impactBeat = nextCycle * attackCycleBeats + pattern.impact;
+
+      if (impactBeat <= currentBeat + 1) {
+        return;
+      }
+
       attacks.push({
         id: attackId,
         move: pattern.move,
         guardType: pattern.guardType,
         windupBeat: nextCycle * attackCycleBeats + pattern.windup,
-        impactBeat: nextCycle * attackCycleBeats + pattern.impact,
+        impactBeat,
         resolved: false,
       });
       attackId += 1;
@@ -182,6 +196,10 @@ function generateEnemyAttacks(currentBeat: number) {
 }
 
 function getActiveAttack(now = performance.now() / 1000) {
+  if (isBossGroggy(now)) {
+    return undefined;
+  }
+
   const beatFloat = getBeatFloat(now);
 
   return attacks.find((attack) => {
@@ -194,6 +212,10 @@ function getActiveAttack(now = performance.now() / 1000) {
 }
 
 function getIncomingAttack(now = performance.now() / 1000) {
+  if (isBossGroggy(now)) {
+    return undefined;
+  }
+
   const beatFloat = getBeatFloat(now);
 
   return attacks.find(
@@ -251,6 +273,10 @@ function findDodgeTarget(now = performance.now() / 1000) {
 }
 
 function resolveEnemyHits(now = performance.now() / 1000) {
+  if (isBossGroggy(now)) {
+    return;
+  }
+
   const beatFloat = getBeatFloat(now);
 
   attacks.forEach((attack) => {
@@ -310,8 +336,12 @@ function enterBreak(now = performance.now() / 1000) {
   breakUntilBeat = currentBeat + 8;
   groggy = 0;
   counterUntil = now + 1.8;
+  generatedCycle = Math.floor(currentBeat / attackCycleBeats) - 1;
+  attacks.forEach((attack) => {
+    attack.resolved = true;
+  });
   addEffect('groggyBreak', 640, 270, '#f5c84c', 1.4);
-  addFloatingText('GROGGY BREAK', 640, 270, '#f5c84c');
+  addFloatingText('EXHAUSTED', 640, 270, '#f5c84c');
 }
 
 function applyAttack(action: 'weak' | 'heavy', grade: Grade, now: number) {
@@ -319,6 +349,7 @@ function applyAttack(action: 'weak' | 'heavy', grade: Grade, now: number) {
   const multiplier = gradeMultiplier(grade);
   const inBreak = beatFloat < breakUntilBeat;
   const inCounter = now < counterUntil;
+  const activeCharacter = characters[activeCharacterIndex];
   const comboName = getComboName();
   const energyReady = energy >= 18;
   let damage = action === 'weak' ? 0.85 : 1.8;
@@ -364,7 +395,7 @@ function applyAttack(action: 'weak' | 'heavy', grade: Grade, now: number) {
   }
 
   bossHp = clamp(bossHp - damage * multiplier, 0, 100);
-  groggy = clamp(groggy + groggyGain * multiplier, 0, 100);
+  groggy = clamp(groggy + groggyGain * multiplier * activeCharacter.groggyPower, 0, 100);
   energy = action === 'weak' ? clamp(energy + 6 * multiplier, 0, 100) : energy;
 
   addEffect(action === 'weak' ? 'slashArc' : 'hitSpark', 640, 265, action === 'weak' ? '#f0f3f7' : '#f5c84c', multiplier);
@@ -429,7 +460,7 @@ function handleAction(action: Action) {
     if (target) {
       target.resolved = true;
       counterUntil = now + 1.4;
-      groggy = clamp(groggy + 24 * multiplier, 0, 100);
+      groggy = clamp(groggy + 24 * multiplier * nextCharacter.groggyPower, 0, 100);
       energy = clamp(energy + 16 * multiplier, 0, 100);
       score += Math.round(280 * multiplier);
       addEffect('tagParryFlash', 640, 465, nextCharacter.accent, multiplier);
@@ -495,22 +526,25 @@ function drawText(text: string, x: number, y: number, size: number, color: strin
 
 function drawBoss(now: number) {
   const activeAttack = getActiveAttack(now);
-  const phase = getAttackPhase(activeAttack, now);
+  const groggyActive = isBossGroggy(now);
+  const phase = groggyActive ? 'groggy' : getAttackPhase(activeAttack, now);
   const attackColor = activeAttack?.guardType === 'unparryable' ? '#ff5a6e' : '#f5c84c';
   const x = 640;
-  const y = activeAttack?.move === 'slam' ? 240 : 220;
+  const y = groggyActive ? 252 : activeAttack?.move === 'slam' ? 240 : 220;
 
   drawPixelBoss(gameContext, x, y, 4, coreBrutePalette, {
     beat: getBeatFloat(now),
     move: activeAttack?.move,
     phase,
-    warningColor: activeAttack ? attackColor : coreBrutePalette.armor,
+    warningColor: groggyActive ? '#f5c84c' : activeAttack ? attackColor : coreBrutePalette.armor,
   });
 
   const label = activeAttack
     ? `${activeAttack.move.toUpperCase()} · ${activeAttack.guardType === 'parryable' ? 'PARRY' : 'DODGE'}`
-    : 'WATCH THE BOSS';
-  drawText(label, x, y - 150, 15, activeAttack ? attackColor : '#8a95a8', 'center');
+    : groggyActive
+      ? 'EXHAUSTED · FREE COMBO'
+      : 'WATCH THE BOSS';
+  drawText(label, x, y - 150, 15, groggyActive ? '#f5c84c' : activeAttack ? attackColor : '#8a95a8', 'center');
 }
 
 function drawParty(now: number) {
@@ -550,7 +584,7 @@ function drawAttackRead(now: number) {
   const attack = getIncomingAttack(now);
 
   if (!attack) {
-    drawText('Enemy neutral. Build pressure.', 640, 372, 17, '#8a95a8', 'center');
+    drawText(isBossGroggy(now) ? 'Boss exhausted. Push damage.' : 'Enemy neutral. Build pressure.', 640, 372, 17, '#8a95a8', 'center');
     return;
   }
 
@@ -614,7 +648,7 @@ function drawFloatingTexts(deltaSeconds: number) {
 function drawHud(now: number) {
   const beatFloat = getBeatFloat(now);
   const inBreak = beatFloat < breakUntilBeat;
-  const result = playerHp <= 0 ? 'FAILED' : bossHp <= 0 ? 'CLEARED' : inBreak ? 'GROGGY BREAK' : 'ACTION ASSAULT';
+  const result = playerHp <= 0 ? 'FAILED' : bossHp <= 0 ? 'CLEARED' : inBreak ? 'EXHAUSTED' : 'ACTION ASSAULT';
 
   drawText('ZYNC ZONE ZERO', 32, 44, 26, '#f0f3f7');
   drawText(result, 32, 74, 15, inBreak ? '#f5c84c' : '#8a95a8');
@@ -639,10 +673,15 @@ function updateSupportAttacks(now: number) {
   }
 
   lastSupportBeat = currentBeat;
-  const supportCount = characters.length - 1;
-  bossHp = clamp(bossHp - supportCount * 0.18, 0, 100);
-  groggy = clamp(groggy + supportCount * 0.16, 0, 100);
-  score += supportCount * 12;
+  let supportGroggy = 0;
+  characters.forEach((character, index) => {
+    if (index !== activeCharacterIndex) {
+      supportGroggy += 0.16 * character.groggyPower;
+    }
+  });
+  bossHp = clamp(bossHp - (characters.length - 1) * 0.18, 0, 100);
+  groggy = clamp(groggy + supportGroggy, 0, 100);
+  score += (characters.length - 1) * 12;
 }
 
 function update(deltaSeconds: number, now: number) {

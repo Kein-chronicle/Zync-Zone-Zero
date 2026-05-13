@@ -25,7 +25,7 @@ Validate whether a fixed-camera boss confrontation can feel good when combat act
 
 - 120 BPM beat clock.
 - Timing grades: Miss, Bad, Good, Perfect.
-- Boss HP, Player HP, Sync, Energy, Break, Score, Combo.
+- Boss HP, Player HP, Sync, Energy, Groggy, Score, Combo.
 - Enemy attacks are represented by boss action states, not falling notes.
 - Enemy attacks are split into yellow parryable attacks and red unparryable attacks.
 - Party has three characters. One is active; the other two auto-attack on rhythm.
@@ -36,7 +36,9 @@ Validate whether a fixed-camera boss confrontation can feel good when combat act
 - Tag outside a parry window still switches the active character.
 - Dodge during any enemy impact window opens a counter window.
 - Weak and heavy attacks deal beat-graded damage.
-- Groggy triggers `Groggy Break`, temporarily increasing damage.
+- Groggy triggers an exhausted boss state.
+- While exhausted, the boss cannot act and becomes a free-combo damage target.
+- Characters build Groggy at different rates; Z-02 is currently the strongest Groggy builder.
 
 ## What This Tests
 
@@ -44,8 +46,8 @@ Validate whether a fixed-camera boss confrontation can feel good when combat act
 - Whether rhythm timing can support action combat instead of replacing it.
 - Whether the player can keep attacking rhythmically, then adjust the next command when the enemy commits to an action.
 - Whether dodge and attack combinations feel useful.
-- Whether parry feels like the main Groggy-building skill.
-- Whether Groggy Break gives a satisfying combat spike.
+- Whether tag parry feels like the main Groggy-building skill.
+- Whether the exhausted boss window gives a satisfying combat spike.
 
 ## Known Limits
 

@@ -5,6 +5,7 @@ export interface PixelCharacter {
   outfit: string;
   skin: string;
   weapon: string;
+  groggyPower: number;
 }
 
 export interface PixelBossPalette {
@@ -22,7 +23,7 @@ interface CharacterDrawOptions {
 }
 
 interface BossDrawOptions {
-  phase: 'idle' | 'windup' | 'impact' | 'recover';
+  phase: 'idle' | 'windup' | 'impact' | 'recover' | 'groggy';
   move: 'slash' | 'slam' | 'thrust' | undefined;
   warningColor: string;
   beat: number;
@@ -41,6 +42,7 @@ export const pixelCharacters: PixelCharacter[] = [
     outfit: '#2e3542',
     skin: '#f0c7a7',
     weapon: '#83e7f0',
+    groggyPower: 1,
   },
   {
     name: 'Z-02',
@@ -49,6 +51,7 @@ export const pixelCharacters: PixelCharacter[] = [
     outfit: '#34302a',
     skin: '#e6b995',
     weapon: '#f0b13a',
+    groggyPower: 1.35,
   },
   {
     name: 'Z-03',
@@ -57,6 +60,7 @@ export const pixelCharacters: PixelCharacter[] = [
     outfit: '#26343a',
     skin: '#efc6a5',
     weapon: '#41e4ca',
+    groggyPower: 0.85,
   },
 ];
 
@@ -127,13 +131,22 @@ export function drawPixelBoss(
   const pulse = Math.round(Math.sin(options.beat * Math.PI * 2) * 2);
   const impact = options.phase === 'impact' ? 3 : 0;
   const warning = options.phase === 'idle' ? palette.armor : options.warningColor;
+  const exhaustedDrop = options.phase === 'groggy' ? 12 : 0;
 
-  px(ctx, -28 - impact, -34 + pulse, 56 + impact * 2, 12, palette.armor, scale);
-  px(ctx, -36 - impact, -22 + pulse, 72 + impact * 2, 36, palette.body, scale);
-  px(ctx, -24, 14 + pulse, 48, 22 + impact, palette.body, scale);
-  px(ctx, -10, -10 + pulse, 20, 20, palette.core, scale);
-  px(ctx, -44 - impact, -12 + pulse, 12, 36, palette.armor, scale);
-  px(ctx, 32 + impact, -12 + pulse, 12, 36, palette.armor, scale);
+  px(ctx, -28 - impact, -34 + pulse + exhaustedDrop, 56 + impact * 2, 12, palette.armor, scale);
+  px(ctx, -36 - impact, -22 + pulse + exhaustedDrop, 72 + impact * 2, 36, palette.body, scale);
+  px(ctx, -24, 14 + pulse + exhaustedDrop, 48, 22 + impact, palette.body, scale);
+  px(ctx, -10, -10 + pulse + exhaustedDrop, 20, 20, palette.core, scale);
+  px(ctx, -44 - impact, -12 + pulse + exhaustedDrop, 12, 36, palette.armor, scale);
+  px(ctx, 32 + impact, -12 + pulse + exhaustedDrop, 12, 36, palette.armor, scale);
+
+  if (options.phase === 'groggy') {
+    px(ctx, -32, -2 + pulse + exhaustedDrop, 64, 4, options.warningColor, scale);
+    px(ctx, -20, 8 + pulse + exhaustedDrop, 40, 4, options.warningColor, scale);
+    px(ctx, -52, 30 + pulse + exhaustedDrop, 104, 5, options.warningColor, scale);
+    ctx.restore();
+    return;
+  }
 
   if (options.move === 'slam') {
     px(ctx, -48, -34 + pulse - impact * 2, 12, 58 + impact * 4, warning, scale);
@@ -150,4 +163,3 @@ export function drawPixelBoss(
 
   ctx.restore();
 }
-
