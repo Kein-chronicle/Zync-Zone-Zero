@@ -49,6 +49,8 @@ Before generating pose frames, define a locked character identity:
 - face features
 - outfit layers
 - weapon
+- weapon idle state
+- weapon visibility rule
 - palette
 - accent color
 - silhouette rules
@@ -83,6 +85,7 @@ Before importing into the game, each generated sheet must pass:
 - no external props unless explicitly required
 - no labels, text, frame numbers, UI, watermark, or scenery
 - consistent scale
+- consistent weapon visibility across idle/breathing/recovery frames
 - consistent facing direction
 - consistent feet baseline
 - clean silhouette at gameplay size
@@ -126,6 +129,8 @@ Face:
 Hair:
 Outfit:
 Weapon:
+Weapon idle state:
+Weapon visibility rule:
 Palette:
 Accent color:
 Silhouette:
@@ -143,11 +148,25 @@ Face: large blue eyes, visible eyelids, small nose, small confident mouth
 Hair: short dark navy bob, side bangs, cyan hair clip
 Outfit: cropped black tactical jacket, white inner top, compact shorts, thigh-high stockings, boots, gloves
 Weapon: compact cyan-white energy blade or baton
+Weapon idle state: weapon is always held in the right hand, blade/baton lowered diagonally beside the body
+Weapon visibility rule: the weapon must remain visible in combat idle, idle breathing, recovery, guard, and ready poses unless the pose explicitly says weapon hidden
 Palette: dark navy, charcoal, white, warm skin, cyan highlights
 Accent color: cyan
 Silhouette: large rounded hair mass, compact jacket, glowing short weapon
-Do not change: hair shape, cyan clip, jacket silhouette, weapon type, palette
+Do not change: hair shape, cyan clip, jacket silhouette, weapon type, weapon hand, weapon idle state, palette
 ```
+
+## Weapon Continuity Contract
+
+The weapon is part of the locked character identity.
+
+- Idle A and Idle B must show the same weapon in the same hand.
+- Breathing variants may move the body slightly, but the weapon must not appear, disappear, swap hands, or change type.
+- Recovery frames return to the same weapon idle state.
+- Guard and parry frames can raise the weapon, but the weapon remains the same object.
+- If a character has a sheath, holster, or floating weapon, define that in the identity lock before generating pose sheets.
+- Do not allow the generator to invent empty-handed idle frames for a weapon user.
+- Do not allow the generator to change a blade into a gun, staff, shield, or magic wand between frames.
 
 ## Required Pose List
 
@@ -205,11 +224,19 @@ Do not change: hair shape, cyan clip, jacket silhouette, weapon type, palette
 - ultimate recovery
 - groggy punish ready
 - groggy punish impact
-- hit light
-- hit heavy
-- knockback
-- downed
-- recover
+- light hit front
+- light hit back
+- heavy hit stagger
+- launch hit
+- knockback start
+- knockback airborne
+- wall-bounce or hard knockback impact
+- downed face-down
+- downed face-up
+- downed exhausted
+- ground recovery start
+- ground recovery stand
+- recover to combat idle
 - victory
 
 ### Party And Tag
@@ -306,6 +333,7 @@ No labels, text, numbers, UI, watermark, background scenery, or extra objects.
 Flat solid chroma-key background: #00ff00.
 Do not use #00ff00 anywhere in the character.
 Keep scale, feet baseline, facing direction, and weapon design consistent.
+Keep weapon visibility consistent. Idle, idle breathing, recovery, guard, and ready poses must all show the same weapon in the same hand unless the frame list explicitly says otherwise.
 The boss/enemy target is fixed at the top-center of the screen.
 All combat actions must aim upward toward that top-center enemy target.
 Use back view or three-quarter-back view, not front-facing hero poses.
@@ -318,11 +346,25 @@ Example:
 
 ```text
 Frame list:
-1. combat idle, three-quarter back view
+1. combat idle, three-quarter back view, weapon visible in locked idle hand
 2. weak attack 1 startup, three-quarter back view, attack aimed upward toward top-center enemy
 3. weak attack 1 impact, three-quarter back view, weapon arc travels upward toward top-center enemy
-4. weak attack 1 recovery, three-quarter back view, returning from an upward attack
+4. weak attack 1 recovery, three-quarter back view, returning from an upward attack, weapon still visible
 ```
+
+### Idle And Ready Prompt Group
+
+Use this group to verify weapon continuity before producing attack sheets.
+
+```text
+Frame list:
+1. combat idle, back view, weapon visible in the locked idle hand, lowered diagonally beside body
+2. combat idle breathing variant, same back view, same weapon, same hand, same weapon type
+3. rhythm ready, three-quarter-back view, same weapon raised slightly but still clearly the same object
+4. recovery to combat idle, back view, returning to the exact same weapon idle state
+```
+
+Reject the sheet if any idle or breathing frame has no weapon, a different weapon, or the weapon in the wrong hand.
 
 ### Weak Combo Prompt Group
 
@@ -362,6 +404,40 @@ Frame list:
 2. evade attack impact, fast punish strike aimed upward toward top-center enemy
 3. counter attack startup, grounded counter stance, weapon pulled back, back or three-quarter-back view
 4. counter attack impact, sharp counter hit aimed upward toward top-center enemy
+```
+
+### Hit And Downed Prompt Group
+
+Use this group for damage reactions. Hit frames are not attacks.
+
+Rules:
+
+- Keep the same character identity, outfit, hair, and weapon.
+- The weapon may be knocked off-line, but it should not disappear unless the frame explicitly says dropped weapon.
+- If the weapon is dropped, keep it inside the same cell and near the character.
+- The character should still read as the same person after being hit.
+- Do not add the attacking enemy, projectiles, blood, gore, UI, labels, or background scenery.
+- Damage direction should imply impact from the top-center boss toward the player.
+- Keep every pose fully inside its own cell.
+
+```text
+Frame list:
+1. light hit front, small recoil from a weak enemy attack, weapon still in locked hand
+2. light hit back, shoulder twist recoil, weapon still visible
+3. heavy hit stagger, stronger body bend, feet sliding, weapon pulled off-line but not gone
+4. launch hit, character lifted or knocked backward, weapon still visible inside cell
+```
+
+### Knockdown And Recovery Prompt Group
+
+Use this group for failure, stun, and recovery states.
+
+```text
+Frame list:
+1. knockback start, character sliding backward from top-center impact, weapon still visible
+2. downed face-down or side-down, compact readable silhouette, weapon near hand inside cell
+3. downed exhausted, character unable to act, weapon still identifiable near body
+4. ground recovery stand, character pushing up and returning toward combat idle weapon state
 ```
 
 ### Tag Attack Prompt Group
@@ -616,6 +692,10 @@ const z01Animations = {
   counterAttack: ['z01_counter_startup', 'z01_counter_impact', 'z01_counter_recovery'],
   tagAttack: ['z01_tag_attack_entrance', 'z01_tag_attack_impact', 'z01_tag_attack_recovery'],
   tagParryAttack: ['z01_tag_parry_guard', 'z01_tag_parry_attack_impact', 'z01_tag_parry_attack_recovery'],
+  lightHit: ['z01_light_hit_front', 'z01_light_hit_back'],
+  heavyHit: ['z01_heavy_hit_stagger', 'z01_launch_hit', 'z01_knockback_start'],
+  downed: ['z01_downed_side', 'z01_downed_exhausted'],
+  recover: ['z01_ground_recovery_start', 'z01_recover_to_combat_idle'],
 };
 ```
 
