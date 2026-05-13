@@ -1,5 +1,11 @@
 # Sprite Production Rules
 
+## Status
+
+This is the single canonical rule document for character sprite concepting, frame generation, slicing, metadata, and game integration.
+
+Do not create separate character design rule documents unless this document is split deliberately.
+
 ## Goal
 
 Build character sprites as reusable game assets, not one-off pretty images.
