@@ -14,6 +14,7 @@ type Action = 'weak' | 'heavy' | 'dodge' | 'tagLeft' | 'tagRight' | 'ultimate';
 type Grade = 'MISS' | 'BAD' | 'GOOD' | 'PERFECT';
 type EnemyMove = 'slash' | 'slam' | 'thrust';
 type GuardType = 'parryable' | 'unparryable';
+type UltimateCutsceneId = 'Z-04' | 'Z-05' | 'Z-06';
 
 interface EnemyAttack {
   id: number;
@@ -99,12 +100,25 @@ const beatDuration = 0.5;
 const attackCycleBeats = 16;
 const zyncMax = 100;
 const zeroFieldDuration = 10;
+const ultimateCutsceneDuration = 2;
 const startTime = performance.now() / 1000;
 const attackPattern: Array<{ move: EnemyMove; guardType: GuardType; windup: number; impact: number }> = [
   { move: 'slash', guardType: 'parryable', windup: 5, impact: 6 },
   { move: 'slam', guardType: 'unparryable', windup: 12, impact: 13 },
 ];
 const characters = pixelCharacters;
+const ultimateCutsceneSources: Record<UltimateCutsceneId, string> = {
+  'Z-04': '/assets/cutscenes/z04-ultimate-cutscene-v001.png',
+  'Z-05': '/assets/cutscenes/z05-ultimate-cutscene-v001.png',
+  'Z-06': '/assets/cutscenes/z06-ultimate-cutscene-v001.png',
+};
+const ultimateCutsceneImages = Object.fromEntries(
+  Object.entries(ultimateCutsceneSources).map(([id, source]) => {
+    const image = new Image();
+    image.src = source;
+    return [id, image];
+  }),
+) as Record<UltimateCutsceneId, HTMLImageElement>;
 const keys: Record<string, Action> = {
   j: 'weak',
   k: 'heavy',
@@ -144,6 +158,9 @@ let lastSupportBeat = -1;
 let lastGruntBeat = -1;
 let activeAdvanceUntil = 0;
 let activeAdvanceTargetY = 585;
+let ultimateCutsceneUntil = 0;
+let ultimateCutsceneStartedAt = 0;
+let activeUltimateCutsceneId: UltimateCutsceneId | undefined;
 const bossActor: FieldActor = { attackUntil: 0, nextMoveAt: 0, x: 640, y: 340, targetX: 640, targetY: 340 };
 const characterActors: FieldActor[] = [
   { attackUntil: 0, nextMoveAt: 0, x: 640, y: 585, targetX: 640, targetY: 585 },
@@ -321,6 +338,20 @@ function scheduleMove(actor: FieldActor, now: number, baseX: number, baseY: numb
 
 function addFloatingText(text: string, x: number, y: number, color: string) {
   floatingTexts.push({ text, x, y, color, ttl: 0.85 });
+}
+
+function isUltimateCutsceneId(name: string): name is UltimateCutsceneId {
+  return name === 'Z-04' || name === 'Z-05' || name === 'Z-06';
+}
+
+function triggerUltimateCutscene(characterName: string, now: number) {
+  if (!isUltimateCutsceneId(characterName)) {
+    return;
+  }
+
+  activeUltimateCutsceneId = characterName;
+  ultimateCutsceneStartedAt = now;
+  ultimateCutsceneUntil = now + ultimateCutsceneDuration;
 }
 
 function addEffect(type: PixelEffect['type'], x: number, y: number, color: string, intensity = 1) {
@@ -721,6 +752,7 @@ function applyUltimate(grade: Grade, now: number) {
     energy = clamp(energy - 60, 0, 100);
   }
 
+  triggerUltimateCutscene(activeCharacter.name, now);
   counterUntil = now + 1.6;
   bossHp = clamp(bossHp - (zeroCast ? 14.5 : 9.5) * multiplier, 0, 100);
   groggy = clamp(groggy + (zeroCast ? 30 : 18) * multiplier * activeCharacter.groggyPower, 0, 100);
@@ -861,6 +893,9 @@ function resetFight() {
   lastGruntBeat = -1;
   activeAdvanceUntil = 0;
   activeAdvanceTargetY = 585;
+  ultimateCutsceneUntil = 0;
+  ultimateCutsceneStartedAt = 0;
+  activeUltimateCutsceneId = undefined;
   bossActor.x = 640;
   bossActor.y = 340;
   bossActor.attackUntil = 0;
@@ -1212,6 +1247,49 @@ function drawFloatingTexts(deltaSeconds: number) {
   }
 }
 
+function drawUltimateCutscene(now: number) {
+  if (!activeUltimateCutsceneId || now >= ultimateCutsceneUntil) {
+    return;
+  }
+
+  const image = ultimateCutsceneImages[activeUltimateCutsceneId];
+  const progress = clamp((now - ultimateCutsceneStartedAt) / ultimateCutsceneDuration, 0, 1);
+  const fadeIn = clamp(progress / 0.08, 0, 1);
+  const fadeOut = clamp((1 - progress) / 0.14, 0, 1);
+  const alpha = Math.min(fadeIn, fadeOut);
+
+  gameContext.save();
+  gameContext.globalAlpha = alpha;
+
+  if (image.complete && image.naturalWidth > 0 && image.naturalHeight > 0) {
+    const canvasRatio = gameCanvas.width / gameCanvas.height;
+    const imageRatio = image.naturalWidth / image.naturalHeight;
+    let sourceX = 0;
+    let sourceY = 0;
+    let sourceWidth = image.naturalWidth;
+    let sourceHeight = image.naturalHeight;
+
+    if (imageRatio > canvasRatio) {
+      sourceWidth = image.naturalHeight * canvasRatio;
+      sourceX = (image.naturalWidth - sourceWidth) / 2;
+    } else {
+      sourceHeight = image.naturalWidth / canvasRatio;
+      sourceY = (image.naturalHeight - sourceHeight) / 2;
+    }
+
+    gameContext.drawImage(image, sourceX, sourceY, sourceWidth, sourceHeight, 0, 0, gameCanvas.width, gameCanvas.height);
+  } else {
+    gameContext.fillStyle = '#05070d';
+    gameContext.fillRect(0, 0, gameCanvas.width, gameCanvas.height);
+  }
+
+  gameContext.globalAlpha = alpha * 0.26;
+  gameContext.fillStyle = '#05070d';
+  gameContext.fillRect(0, 0, gameCanvas.width, 84);
+  gameContext.fillRect(0, gameCanvas.height - 96, gameCanvas.width, 96);
+  gameContext.restore();
+}
+
 function drawHud(now: number) {
   const beatFloat = getBeatFloat(now);
   const inBreak = beatFloat < breakUntilBeat;
@@ -1398,6 +1476,10 @@ function update(deltaSeconds: number, now: number) {
     zeroFieldUntil = 0;
     zeroUltimateAvailable = false;
   }
+  if (ultimateCutsceneUntil > 0 && now >= ultimateCutsceneUntil) {
+    ultimateCutsceneUntil = 0;
+    activeUltimateCutsceneId = undefined;
+  }
   generateEnemyAttacks(beat);
   resolveEnemyHits(now);
   updateSupportAttacks(now);
@@ -1435,6 +1517,7 @@ function render(nowMs: number) {
   drawBeatRing(now);
   drawHud(now);
   drawFloatingTexts(deltaSeconds);
+  drawUltimateCutscene(now);
 
   requestAnimationFrame(render);
 }

@@ -73,7 +73,7 @@ Required execution path:
 1. Read this rule document.
 2. Create or update the character concept document.
 3. Build the locked identity and pose plan.
-4. Use an image-generation workflow or externally created sprite artwork for concept and pose sheets.
+4. Use an image-generation workflow or externally created sprite artwork for concept, pose sheets, and ultimate cutscene art.
 5. Save the original generated source image under `docs/art/generated/`.
 6. Remove chroma key or clean background only after source preservation.
 7. Normalize the runtime sheet dimensions.
@@ -99,6 +99,43 @@ Prototype exception:
 - Primitive or code-native art may be used only for throwaway mechanics tests.
 - It must be named as a placeholder in the manifest.
 - It must not be committed as the accepted result of a character generation request.
+
+## Ultimate Cutscene Contract
+
+Every playable character must have a full-screen ultimate cutscene illustration when the character is promoted beyond placeholder status.
+
+Cutscene art is separate from sprite sheets.
+
+Required cutscene rules:
+
+- Use image generation or externally created illustration art.
+- Do not use pixel art, dot design, sprite sheets, code-drawn primitives, UI mockups, or placeholder geometry.
+- The cutscene must be a polished full-screen action illustration, not a frame sheet.
+- The image should be dramatic, beautiful, and character-specific.
+- The character identity must match the locked identity block.
+- The attack must clearly express the character's combat identity and weapon.
+- Do not copy official characters, exact outfits, official symbols, recognizable silhouettes, or story identities.
+- No text, logo, watermark, UI, frame border, subtitles, speech bubbles, or labels inside the image.
+- Default runtime aspect ratio is 16:9.
+- Preferred runtime size is `1536x864` or larger, then displayed cover-cropped to the game canvas.
+
+Required storage:
+
+- source image: `docs/art/generated/<character-id>-ultimate-cutscene-v001-source.png`
+- runtime image: `public/assets/cutscenes/<character-id>-ultimate-cutscene-v001.png`
+
+Runtime behavior:
+
+- When the character uses an ultimate, show the cutscene full-screen for 2 seconds.
+- The cutscene should cover the entire combat canvas.
+- Draw a subtle dark overlay under the cutscene only if readability requires it.
+- After 2 seconds, return to combat automatically.
+
+If a cutscene generation fails:
+
+1. Regenerate with stricter identity and no-text constraints.
+2. If the character is off-model, regenerate from the locked identity.
+3. Do not substitute pixel art or primitive art.
 
 ## Sprite QA Protocol
 
