@@ -1,0 +1,27 @@
+{
+  "id": "eb01-core-brute-combat-core-v1",
+  "kind": "enemy",
+  "tier": "boss",
+  "sourcePromptVersion": "enemy-production-rules@889b203",
+  "sourceImage": "docs/art/generated/eb01-core-brute-combat-core-v1-source.png",
+  "conceptImage": "docs/art/generated/eb01-core-brute-concept-v1-source.png",
+  "runtimeImage": "public/assets/sprites/enemies/eb01-core-brute/sheets/eb01-core-brute-combat-core-v1.png",
+  "columns": 4,
+  "rows": 4,
+  "sourceInset": 10,
+  "backgroundKey": "#00ff00",
+  "approved": false,
+  "states": [
+    "idle",
+    "alert",
+    "parryable",
+    "unparryable",
+    "thrust",
+    "hit",
+    "groggy"
+  ],
+  "issues": [
+    "prototype asset; attack effects are still embedded in some boss frames",
+    "needs separate boss effect sheets for shockwaves, ground impact, and core beams"
+  ]
+}

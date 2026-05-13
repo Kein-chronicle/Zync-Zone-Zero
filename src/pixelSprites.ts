@@ -1,3 +1,4 @@
+import { drawSpriteSheetBoss } from './bossSheetSprites';
 import { drawSpriteSheetCharacter, type CharacterPose } from './spriteSheetSprites';
 
 export interface PixelCharacter {
@@ -168,42 +169,5 @@ export function drawPixelBoss(
   palette: PixelBossPalette,
   options: BossDrawOptions,
 ) {
-  ctx.save();
-  ctx.translate(Math.round(x), Math.round(y));
-  ctx.imageSmoothingEnabled = false;
-
-  const pulse = Math.round(Math.sin(options.beat * Math.PI * 2) * 2);
-  const impact = options.phase === 'impact' ? 3 : 0;
-  const warning = options.phase === 'idle' ? palette.armor : options.warningColor;
-  const exhaustedDrop = options.phase === 'groggy' ? 12 : 0;
-
-  px(ctx, -28 - impact, -34 + pulse + exhaustedDrop, 56 + impact * 2, 12, palette.armor, scale);
-  px(ctx, -36 - impact, -22 + pulse + exhaustedDrop, 72 + impact * 2, 36, palette.body, scale);
-  px(ctx, -24, 14 + pulse + exhaustedDrop, 48, 22 + impact, palette.body, scale);
-  px(ctx, -10, -10 + pulse + exhaustedDrop, 20, 20, palette.core, scale);
-  px(ctx, -44 - impact, -12 + pulse + exhaustedDrop, 12, 36, palette.armor, scale);
-  px(ctx, 32 + impact, -12 + pulse + exhaustedDrop, 12, 36, palette.armor, scale);
-
-  if (options.phase === 'groggy') {
-    px(ctx, -32, -2 + pulse + exhaustedDrop, 64, 4, options.warningColor, scale);
-    px(ctx, -20, 8 + pulse + exhaustedDrop, 40, 4, options.warningColor, scale);
-    px(ctx, -52, 30 + pulse + exhaustedDrop, 104, 5, options.warningColor, scale);
-    ctx.restore();
-    return;
-  }
-
-  if (options.move === 'slam') {
-    px(ctx, -48, -34 + pulse - impact * 2, 12, 58 + impact * 4, warning, scale);
-    px(ctx, 36, -34 + pulse - impact * 2, 12, 58 + impact * 4, warning, scale);
-  } else if (options.move === 'thrust') {
-    px(ctx, -48, 4 + pulse, 96 + impact * 5, 6, warning, scale);
-  } else {
-    px(ctx, -58 - impact, -24 + pulse, 116 + impact * 2, 6, warning, scale);
-    px(ctx, -50 - impact, 24 + pulse, 100 + impact * 2, 6, warning, scale);
-  }
-
-  px(ctx, -18, -20 + pulse, 8, 8, palette.core, scale);
-  px(ctx, 10, -20 + pulse, 8, 8, palette.core, scale);
-
-  ctx.restore();
+  drawSpriteSheetBoss(ctx, x, y, scale, palette, options);
 }

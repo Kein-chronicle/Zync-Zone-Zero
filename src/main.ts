@@ -651,9 +651,9 @@ function drawBoss(now: number) {
   const phase = groggyActive ? 'groggy' : getAttackPhase(activeAttack, now);
   const attackColor = activeAttack?.guardType === 'unparryable' ? '#ff5a6e' : '#f5c84c';
   const x = 640;
-  const y = groggyActive ? 252 : activeAttack?.move === 'slam' ? 240 : 220;
+  const y = groggyActive ? 365 : activeAttack?.move === 'slam' ? 350 : 340;
 
-  drawPixelBoss(gameContext, x, y, 4, coreBrutePalette, {
+  drawPixelBoss(gameContext, x, y, 1.35, coreBrutePalette, {
     beat: getBeatFloat(now),
     move: activeAttack?.move,
     phase,
@@ -665,7 +665,7 @@ function drawBoss(now: number) {
     : groggyActive
       ? 'EXHAUSTED · FREE COMBO'
       : 'WATCH THE BOSS';
-  drawText(label, x, y - 150, 15, groggyActive ? '#f5c84c' : activeAttack ? attackColor : '#8a95a8', 'center');
+  drawText(label, x, 112, 15, groggyActive ? '#f5c84c' : activeAttack ? attackColor : '#8a95a8', 'center');
 }
 
 function drawParty(now: number) {
@@ -707,7 +707,7 @@ function drawAttackRead(now: number) {
   const attack = getIncomingAttack(now);
 
   if (!attack) {
-    drawText(isBossGroggy(now) ? 'Boss exhausted. Push damage.' : 'Enemy neutral. Build pressure.', 640, 372, 17, '#8a95a8', 'center');
+    drawText(isBossGroggy(now) ? 'Boss exhausted. Push damage.' : 'Enemy neutral. Build pressure.', 640, 420, 17, '#8a95a8', 'center');
     return;
   }
 
@@ -718,14 +718,14 @@ function drawAttackRead(now: number) {
   const response = attack.guardType === 'parryable' ? 'TAG PARRY OR DODGE' : 'DODGE ONLY';
 
   gameContext.fillStyle = '#20242b';
-  gameContext.fillRect(440, 360, 400, 10);
+  gameContext.fillRect(440, 405, 400, 10);
   gameContext.fillStyle = color;
-  gameContext.fillRect(440, 360, 400 * progress, 10);
-  drawText('Enemy motion read', 640, 344, 15, '#8a95a8', 'center');
+  gameContext.fillRect(440, 405, 400 * progress, 10);
+  drawText('Enemy motion read', 640, 389, 15, '#8a95a8', 'center');
   drawText(
     `${attack.move.toUpperCase()} · ${response} · ${Math.max(untilImpact, 0).toFixed(1)} beats`,
     640,
-    396,
+    436,
     20,
     color,
     'center',
