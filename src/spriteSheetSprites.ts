@@ -31,11 +31,23 @@ const z02Sheet = new Image();
 z02Sheet.src = '/assets/sprites/characters/z02/sheets/z02-combat-core-v1.png';
 const z03Sheet = new Image();
 z03Sheet.src = '/assets/sprites/characters/z03/sheets/z03-combat-core-v1.png';
+const z01WalkSheet = new Image();
+z01WalkSheet.src = '/assets/sprites/characters/z01/sheets/z01-walk-north-v1.png';
+const z02WalkSheet = new Image();
+z02WalkSheet.src = '/assets/sprites/characters/z02/sheets/z02-walk-north-v1.png';
+const z03WalkSheet = new Image();
+z03WalkSheet.src = '/assets/sprites/characters/z03/sheets/z03-walk-north-v1.png';
 
 const characterSheets: Record<SpriteSheetCharacterId, HTMLImageElement> = {
   'Z-01': z01Sheet,
   'Z-02': z02Sheet,
   'Z-03': z03Sheet,
+};
+
+const walkSheets: Record<SpriteSheetCharacterId, HTMLImageElement> = {
+  'Z-01': z01WalkSheet,
+  'Z-02': z02WalkSheet,
+  'Z-03': z03WalkSheet,
 };
 
 const fallbackColors: Record<SpriteSheetCharacterId, string> = {
@@ -78,6 +90,13 @@ const combatFrames = {
   weak3Impact: frame('z01_weak3_impact', 3, 1),
   weak3Startup: frame('z01_weak3_startup', 2, 1),
 };
+
+const walkFrames = [
+  frame('walk_north_1', 0, 0),
+  frame('walk_north_2', 1, 0),
+  frame('walk_north_3', 2, 0),
+  frame('walk_north_4', 3, 0),
+];
 
 function selectCombatFrame(pose: CharacterPose, beat: number, active: boolean) {
   if (!active) {
@@ -126,10 +145,6 @@ function selectCombatFrame(pose: CharacterPose, beat: number, active: boolean) {
     return pulse === 0 ? combatFrames.tagReady : combatFrames.tagImpact;
   }
 
-  if (pose === 'walk') {
-    return Math.floor(beat * 4) % 2 === 0 ? combatFrames.idleA : combatFrames.idleB;
-  }
-
   return Math.floor(beat * 2) % 2 === 0 ? combatFrames.idleA : combatFrames.idleB;
 }
 
@@ -145,8 +160,10 @@ export function drawSpriteSheetCharacter(
     pose: CharacterPose;
   },
 ) {
-  const selectedFrame = selectCombatFrame(options.pose, options.beat, options.active);
-  const sheet = characterSheets[characterId];
+  const walking = options.pose === 'walk';
+  const walkFrameIndex = ((Math.floor(options.beat * 6) % walkFrames.length) + walkFrames.length) % walkFrames.length;
+  const selectedFrame = walking ? walkFrames[walkFrameIndex] : selectCombatFrame(options.pose, options.beat, options.active);
+  const sheet = walking ? walkSheets[characterId] : characterSheets[characterId];
   const sheetScale = scale * 0.18;
   const width = selectedFrame.width * sheetScale;
   const height = selectedFrame.height * sheetScale;
@@ -165,8 +182,8 @@ export function drawSpriteSheetCharacter(
   ctx.save();
   ctx.imageSmoothingEnabled = false;
   const sourceCellWidth = sheet.naturalWidth / 4;
-  const sourceCellHeight = sheet.naturalHeight / 4;
-  const sourceInset = sourceInsets[characterId];
+  const sourceCellHeight = walking ? sheet.naturalHeight : sheet.naturalHeight / 4;
+  const sourceInset = walking ? 0 : sourceInsets[characterId];
   ctx.drawImage(
     sheet,
     selectedFrame.column * sourceCellWidth + sourceInset,

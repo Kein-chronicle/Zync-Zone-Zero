@@ -127,6 +127,8 @@ let lastAttackChainAction: 'weak' | 'heavy' | undefined;
 let lastAttackChainTime = 0;
 let lastSupportBeat = -1;
 let lastGruntBeat = -1;
+let activeAdvanceUntil = 0;
+let activeAdvanceTargetY = 585;
 const bossActor: FieldActor = { attackUntil: 0, nextMoveAt: 0, x: 640, y: 340, targetX: 640, targetY: 340 };
 const characterActors: FieldActor[] = [
   { attackUntil: 0, nextMoveAt: 0, x: 640, y: 585, targetX: 640, targetY: 585 },
@@ -135,7 +137,7 @@ const characterActors: FieldActor[] = [
 ];
 const grunts: GruntState[] = [
   {
-    actor: { attackUntil: 0, nextMoveAt: 0, x: 390, y: 334, targetX: 390, targetY: 334 },
+    actor: { attackUntil: 0, nextMoveAt: 0, x: 420, y: 392, targetX: 420, targetY: 392 },
     attackBeatModulo: 3,
     attackPhaseUntil: 0,
     hp: 120,
@@ -144,7 +146,7 @@ const grunts: GruntState[] = [
     side: 'left',
   },
   {
-    actor: { attackUntil: 0, nextMoveAt: 0, x: 890, y: 332, targetX: 890, targetY: 332 },
+    actor: { attackUntil: 0, nextMoveAt: 0, x: 860, y: 398, targetX: 860, targetY: 398 },
     attackBeatModulo: 4,
     attackPhaseUntil: 0,
     hp: 132,
@@ -230,6 +232,14 @@ function moveActor(actor: FieldActor, speed: number, deltaSeconds: number) {
 
 function isActorMoving(actor: FieldActor) {
   return Math.abs(actor.x - actor.targetX) > 1.5 || Math.abs(actor.y - actor.targetY) > 1.5;
+}
+
+function getDistance(ax: number, ay: number, bx: number, by: number) {
+  return Math.hypot(ax - bx, ay - by);
+}
+
+function isNearPoint(actor: FieldActor, target: { x: number; y: number }, range: number) {
+  return getDistance(actor.x, actor.y, target.x, target.y) <= range;
 }
 
 function scheduleMove(actor: FieldActor, now: number, baseX: number, baseY: number, rangeX: number, rangeY: number, minDelay: number, maxDelay: number) {
@@ -425,14 +435,14 @@ function getSupportTarget(side: 'left' | 'right') {
 
   if (livingGrunt) {
     return {
-      x: livingGrunt.actor.x + (side === 'left' ? 86 : -86),
-      y: livingGrunt.actor.y + 210,
+      x: livingGrunt.actor.x + (side === 'left' ? 58 : -58),
+      y: livingGrunt.actor.y + 118,
     };
   }
 
   return {
-    x: bossActor.x + (side === 'left' ? -150 : 150),
-    y: bossActor.y + 185,
+    x: bossActor.x + (side === 'left' ? -104 : 104),
+    y: bossActor.y + 142,
   };
 }
 
@@ -520,6 +530,7 @@ function applyAttack(action: 'weak' | 'heavy', grade: Grade, now: number, chainS
   const inBreak = beatFloat < breakUntilBeat;
   const inCounter = now < counterUntil;
   const activeCharacter = characters[activeCharacterIndex];
+  const activeActor = characterActors[activeCharacterIndex];
   const comboName = getComboName();
   const energyReady = energy >= 18;
   let damage = action === 'weak' ? 0.85 : 1.8;
@@ -569,6 +580,9 @@ function applyAttack(action: 'weak' | 'heavy', grade: Grade, now: number, chainS
   bossHp = clamp(bossHp - damage * multiplier, 0, 100);
   groggy = clamp(groggy + groggyGain * multiplier * activeCharacter.groggyPower, 0, 100);
   energy = action === 'weak' ? clamp(energy + 6 * multiplier, 0, 100) : energy;
+  activeActor.attackUntil = now + (action === 'weak' ? 0.42 : 0.56);
+  activeAdvanceUntil = now + (action === 'weak' ? 0.52 : 0.66);
+  activeAdvanceTargetY = action === 'weak' ? 505 : 485;
 
   const activeEffectColor =
     activeCharacter.name === 'Z-02' || activeCharacter.name === 'Z-03'
@@ -731,6 +745,8 @@ function resetFight() {
   lastAttackChainTime = 0;
   lastSupportBeat = -1;
   lastGruntBeat = -1;
+  activeAdvanceUntil = 0;
+  activeAdvanceTargetY = 585;
   bossActor.x = 640;
   bossActor.y = 340;
   bossActor.attackUntil = 0;
@@ -742,10 +758,10 @@ function resetFight() {
   characterActors[2] = { attackUntil: 0, nextMoveAt: 0, x: 780, y: 585, targetX: 780, targetY: 585 };
   grunts[0].hp = grunts[0].maxHp;
   grunts[0].attackPhaseUntil = 0;
-  grunts[0].actor = { attackUntil: 0, nextMoveAt: 0, x: 390, y: 334, targetX: 390, targetY: 334 };
+  grunts[0].actor = { attackUntil: 0, nextMoveAt: 0, x: 420, y: 392, targetX: 420, targetY: 392 };
   grunts[1].hp = grunts[1].maxHp;
   grunts[1].attackPhaseUntil = 0;
-  grunts[1].actor = { attackUntil: 0, nextMoveAt: 0, x: 890, y: 332, targetX: 890, targetY: 332 };
+  grunts[1].actor = { attackUntil: 0, nextMoveAt: 0, x: 860, y: 398, targetX: 860, targetY: 398 };
   attacks.length = 0;
   inputHistory.length = 0;
   floatingTexts.length = 0;
@@ -996,12 +1012,21 @@ function updateSupportAttacks(now: number) {
 
   supportIndexes.forEach((characterIndex, supportIndex) => {
     const character = characters[characterIndex];
+    const actor = characterActors[characterIndex];
     const side = supportSides[supportIndex];
     const sideGrunt = getLivingSideGrunt(side);
+    const attackPosition = getSupportTarget(side);
+
+    if (!isNearPoint(actor, attackPosition, 76)) {
+      actor.targetX = attackPosition.x;
+      actor.targetY = attackPosition.y;
+      actor.nextMoveAt = now + 0.16;
+      return;
+    }
 
     if (sideGrunt) {
       const damage = 2.6 + character.groggyPower * 0.8;
-      characterActors[characterIndex].attackUntil = now + 0.42;
+      actor.attackUntil = now + 0.42;
       sideGrunt.hp = clamp(sideGrunt.hp - damage, 0, sideGrunt.maxHp);
       addEffect('hitSpark', sideGrunt.actor.x, sideGrunt.actor.y + 28, character.accent, 0.35);
       addSpriteEffect(getCharacterSpriteEffect(character.name), sideGrunt.actor.x, sideGrunt.actor.y + 18, 0.32, 0.24, 0.78);
@@ -1015,7 +1040,7 @@ function updateSupportAttacks(now: number) {
     }
 
     supportGroggy += 0.22 * character.groggyPower;
-    characterActors[characterIndex].attackUntil = now + 0.42;
+    actor.attackUntil = now + 0.42;
     bossHp = clamp(bossHp - 0.45, 0, 100);
     addEffect('hitSpark', bossActor.x + (side === 'left' ? -80 : 80), bossActor.y + 34, character.accent, 0.25);
     addSpriteEffect(getCharacterSpriteEffect(character.name), bossActor.x + (side === 'left' ? -92 : 92), bossActor.y + 34, 0.38, 0.24, 0.72);
@@ -1052,9 +1077,9 @@ function updateFieldMotion(deltaSeconds: number, now: number) {
   moveActor(bossActor, 36, deltaSeconds);
 
   grunts.forEach((grunt, index) => {
-    const homeX = grunt.side === 'left' ? 390 : 890;
-    const homeY = grunt.side === 'left' ? 334 : 332;
-    scheduleMove(grunt.actor, now, homeX, homeY, 22, 10, 1.1 + index * 0.2, 2.2 + index * 0.3);
+    const homeX = grunt.side === 'left' ? 420 : 860;
+    const homeY = grunt.side === 'left' ? 392 : 398;
+    scheduleMove(grunt.actor, now, homeX, homeY, 28, 16, 1.1 + index * 0.2, 2.2 + index * 0.3);
     moveActor(grunt.actor, 44, deltaSeconds);
   });
 
@@ -1063,16 +1088,22 @@ function updateFieldMotion(deltaSeconds: number, now: number) {
   characterActors.forEach((actor, index) => {
     if (index === activeCharacterIndex) {
       actor.targetX = 640;
-      actor.targetY = 585;
-      moveActor(actor, 220, deltaSeconds);
+      actor.targetY = now < activeAdvanceUntil ? activeAdvanceTargetY : 585;
+      moveActor(actor, now < activeAdvanceUntil ? 430 : 260, deltaSeconds);
       return;
     }
 
     const supportSideIndex = supportIndexes.indexOf(index);
     const side = supportSides[supportSideIndex] ?? 'left';
     const target = getSupportTarget(side);
-    scheduleMove(actor, now, target.x, target.y, 42, 24, 0.9 + index * 0.15, 1.9 + index * 0.2);
-    moveActor(actor, 130, deltaSeconds);
+    if (!isNearPoint(actor, target, 72)) {
+      actor.targetX = target.x;
+      actor.targetY = target.y;
+      actor.nextMoveAt = now + 0.12;
+    } else {
+      scheduleMove(actor, now, target.x, target.y, 22, 12, 0.35 + index * 0.1, 0.9 + index * 0.15);
+    }
+    moveActor(actor, 150, deltaSeconds);
   });
 }
 
