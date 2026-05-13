@@ -3,10 +3,12 @@ import './styles.css';
 type Action = 'weak' | 'heavy' | 'dodge' | 'parry';
 type Grade = 'MISS' | 'BAD' | 'GOOD' | 'PERFECT';
 type EnemyMove = 'slash' | 'slam' | 'thrust';
+type GuardType = 'parryable' | 'unparryable';
 
 interface EnemyAttack {
   id: number;
   move: EnemyMove;
+  guardType: GuardType;
   windupBeat: number;
   impactBeat: number;
   resolved: boolean;
@@ -53,11 +55,11 @@ if (!canvas || !context) {
 const gameCanvas = canvas;
 const gameContext = context;
 const beatDuration = 0.5;
+const attackCycleBeats = 16;
 const startTime = performance.now() / 1000;
-const attackPattern: Array<{ move: EnemyMove; windup: number; impact: number }> = [
-  { move: 'slash', windup: 1, impact: 2 },
-  { move: 'slam', windup: 4, impact: 5 },
-  { move: 'thrust', windup: 6, impact: 7 },
+const attackPattern: Array<{ move: EnemyMove; guardType: GuardType; windup: number; impact: number }> = [
+  { move: 'slash', guardType: 'parryable', windup: 5, impact: 6 },
+  { move: 'slam', guardType: 'unparryable', windup: 12, impact: 13 },
 ];
 const keys: Record<string, Action> = {
   j: 'weak',
@@ -142,7 +144,11 @@ function addFloatingText(text: string, x: number, y: number, color: string) {
 }
 
 function generateEnemyAttacks(currentBeat: number) {
-  const cycle = Math.floor(currentBeat / 8);
+  const cycle = Math.floor(currentBeat / attackCycleBeats);
+
+  if (generatedCycle < cycle - 1) {
+    generatedCycle = cycle - 1;
+  }
 
   if (cycle <= generatedCycle) {
     return;
@@ -153,8 +159,9 @@ function generateEnemyAttacks(currentBeat: number) {
       attacks.push({
         id: attackId,
         move: pattern.move,
-        windupBeat: nextCycle * 8 + pattern.windup,
-        impactBeat: nextCycle * 8 + pattern.impact,
+        guardType: pattern.guardType,
+        windupBeat: nextCycle * attackCycleBeats + pattern.windup,
+        impactBeat: nextCycle * attackCycleBeats + pattern.impact,
         resolved: false,
       });
       attackId += 1;
@@ -179,7 +186,9 @@ function getActiveAttack(now = performance.now() / 1000) {
 function getIncomingAttack(now = performance.now() / 1000) {
   const beatFloat = getBeatFloat(now);
 
-  return attacks.find((attack) => !attack.resolved && attack.impactBeat >= beatFloat - 0.1);
+  return attacks.find(
+    (attack) => !attack.resolved && attack.impactBeat >= beatFloat - 0.1 && attack.windupBeat - beatFloat <= 1.5,
+  );
 }
 
 function getAttackPhase(attack: EnemyAttack | undefined, now = performance.now() / 1000) {
@@ -207,7 +216,18 @@ function getAttackPhase(attack: EnemyAttack | undefined, now = performance.now()
 function findParryTarget(now = performance.now() / 1000) {
   const beatFloat = getBeatFloat(now);
 
-  return attacks.find((attack) => !attack.resolved && Math.abs(attack.impactBeat - beatFloat) <= 0.24);
+  return attacks.find(
+    (attack) => !attack.resolved && attack.guardType === 'parryable' && Math.abs(attack.impactBeat - beatFloat) <= 0.24,
+  );
+}
+
+function findUnparryableTarget(now = performance.now() / 1000) {
+  const beatFloat = getBeatFloat(now);
+
+  return attacks.find(
+    (attack) =>
+      !attack.resolved && attack.guardType === 'unparryable' && Math.abs(attack.impactBeat - beatFloat) <= 0.24,
+  );
 }
 
 function findDodgeTarget(now = performance.now() / 1000) {
@@ -378,6 +398,10 @@ function handleAction(action: Action) {
       energy = clamp(energy + 14 * multiplier, 0, 100);
       score += Math.round(260 * multiplier);
       addFloatingText('PARRY', 640, 465, '#f5c84c');
+    } else if (findUnparryableTarget(now)) {
+      combo = 0;
+      sync = clamp(sync - 8, 0, 100);
+      addFloatingText('UNPARRYABLE', 640, 575, '#ff5a6e');
     } else {
       combo = 0;
       sync = clamp(sync - 4, 0, 100);
@@ -433,11 +457,21 @@ function drawBoss(now: number) {
   const phase = getAttackPhase(activeAttack, now);
   const beatPulse = 1 + Math.sin(getBeatFloat(now) * Math.PI * 2) * 0.018;
   const impactPulse = phase === 'impact' ? 1.12 : 1;
+  const attackColor = activeAttack?.guardType === 'unparryable' ? '#ff5a6e' : '#f5c84c';
   const x = 640;
   const y = activeAttack?.move === 'slam' ? 240 : 220;
   const width = 380 * beatPulse * impactPulse;
   const height = 245 * beatPulse * impactPulse;
-  const color = phase === 'impact' ? '#3b2029' : phase === 'windup' ? '#2f2b24' : '#242932';
+  const color =
+    phase === 'impact'
+      ? activeAttack?.guardType === 'unparryable'
+        ? '#3b2029'
+        : '#39311f'
+      : phase === 'windup'
+        ? activeAttack?.guardType === 'unparryable'
+          ? '#302229'
+          : '#302b20'
+        : '#242932';
   const armOffset = phase === 'windup' ? 48 : phase === 'impact' ? -30 : 0;
   const attackLean = activeAttack?.move === 'thrust' ? 34 : activeAttack?.move === 'slash' ? -28 : 0;
 
@@ -446,7 +480,7 @@ function drawBoss(now: number) {
   gameContext.roundRect(x - width / 2 + attackLean, y - height / 2, width, height, 34);
   gameContext.fill();
 
-  gameContext.strokeStyle = phase === 'impact' ? '#ff5a6e' : '#0fb9b1';
+  gameContext.strokeStyle = activeAttack ? attackColor : '#0fb9b1';
   gameContext.lineWidth = 12;
   gameContext.beginPath();
 
@@ -475,8 +509,10 @@ function drawBoss(now: number) {
   gameContext.arc(x + 82 + attackLean * 0.25, y - 26, 18, 0, Math.PI * 2);
   gameContext.fill();
 
-  const label = activeAttack ? `${activeAttack.move.toUpperCase()} · ${phase.toUpperCase()}` : 'WATCH THE BOSS';
-  drawText(label, x, y - 150, 15, phase === 'impact' ? '#ff5a6e' : '#8a95a8', 'center');
+  const label = activeAttack
+    ? `${activeAttack.move.toUpperCase()} · ${activeAttack.guardType === 'parryable' ? 'PARRY' : 'DODGE'}`
+    : 'WATCH THE BOSS';
+  drawText(label, x, y - 150, 15, activeAttack ? attackColor : '#8a95a8', 'center');
 }
 
 function drawPlayer(now: number) {
@@ -517,14 +553,22 @@ function drawAttackRead(now: number) {
   const beatFloat = getBeatFloat(now);
   const untilImpact = attack.impactBeat - beatFloat;
   const progress = clamp(1 - untilImpact / Math.max(attack.impactBeat - attack.windupBeat, 0.1), 0, 1);
-  const color = untilImpact <= 0.25 ? '#ff5a6e' : '#f5c84c';
+  const color = attack.guardType === 'parryable' ? '#f5c84c' : '#ff5a6e';
+  const response = attack.guardType === 'parryable' ? 'PARRY OR DODGE' : 'DODGE ONLY';
 
   gameContext.fillStyle = '#20242b';
   gameContext.fillRect(440, 360, 400, 10);
   gameContext.fillStyle = color;
   gameContext.fillRect(440, 360, 400 * progress, 10);
   drawText('Enemy motion read', 640, 344, 15, '#8a95a8', 'center');
-  drawText(`${attack.move.toUpperCase()} impact in ${Math.max(untilImpact, 0).toFixed(1)} beats`, 640, 396, 20, color, 'center');
+  drawText(
+    `${attack.move.toUpperCase()} · ${response} · ${Math.max(untilImpact, 0).toFixed(1)} beats`,
+    640,
+    396,
+    20,
+    color,
+    'center',
+  );
 }
 
 function drawBeatRing(now: number) {
