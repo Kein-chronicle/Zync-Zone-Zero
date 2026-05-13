@@ -293,6 +293,10 @@ function getCharacterSpriteEffect(characterName: string, action: 'heavy' | 'weak
     return action === 'weak' ? 'projectile' : 'impactGold';
   }
 
+  if (characterName === 'Z-06') {
+    return action === 'weak' ? 'kineticTeal' : 'impactGold';
+  }
+
   if (characterName === 'Z-03') {
     return 'kineticTeal';
   }
@@ -609,7 +613,10 @@ function applyAttack(action: 'weak' | 'heavy', grade: Grade, now: number, chainS
   activeAdvanceTargetY = action === 'weak' ? 505 : 485;
 
   const activeEffectColor =
-    activeCharacter.name === 'Z-02' || activeCharacter.name === 'Z-03' || activeCharacter.name === 'Z-05'
+    activeCharacter.name === 'Z-02'
+    || activeCharacter.name === 'Z-03'
+    || activeCharacter.name === 'Z-05'
+    || activeCharacter.name === 'Z-06'
       ? activeCharacter.accent
       : action === 'weak'
         ? '#f0f3f7'
@@ -620,8 +627,20 @@ function applyAttack(action: 'weak' | 'heavy', grade: Grade, now: number, chainS
   addSpriteEffect(
     activeSpriteEffect,
     640,
-    activeCharacter.name === 'Z-02' || activeCharacter.name === 'Z-05' ? 375 : activeCharacter.name === 'Z-03' ? 370 : action === 'weak' ? 395 : 365,
-    activeCharacter.name === 'Z-02' || activeCharacter.name === 'Z-05' ? 0.58 : activeCharacter.name === 'Z-03' ? 0.56 : action === 'weak' ? 0.55 : 0.48,
+    activeCharacter.name === 'Z-02' || activeCharacter.name === 'Z-05'
+      ? 375
+      : activeCharacter.name === 'Z-03' || activeCharacter.name === 'Z-06'
+        ? 370
+        : action === 'weak'
+          ? 395
+          : 365,
+    activeCharacter.name === 'Z-02' || activeCharacter.name === 'Z-05'
+      ? 0.58
+      : activeCharacter.name === 'Z-03' || activeCharacter.name === 'Z-06'
+        ? 0.56
+        : action === 'weak'
+          ? 0.55
+          : 0.48,
     action === 'weak' ? 0.28 : 0.34,
     0.9,
   );
