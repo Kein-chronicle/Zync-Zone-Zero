@@ -38,8 +38,10 @@ interface FloatingText {
 }
 
 interface FieldActor {
+  attackUntil: number;
   x: number;
   y: number;
+  nextMoveAt: number;
   targetX: number;
   targetY: number;
 }
@@ -125,15 +127,15 @@ let lastAttackChainAction: 'weak' | 'heavy' | undefined;
 let lastAttackChainTime = 0;
 let lastSupportBeat = -1;
 let lastGruntBeat = -1;
-const bossActor: FieldActor = { x: 640, y: 340, targetX: 640, targetY: 340 };
+const bossActor: FieldActor = { attackUntil: 0, nextMoveAt: 0, x: 640, y: 340, targetX: 640, targetY: 340 };
 const characterActors: FieldActor[] = [
-  { x: 640, y: 585, targetX: 640, targetY: 585 },
-  { x: 500, y: 585, targetX: 500, targetY: 585 },
-  { x: 780, y: 585, targetX: 780, targetY: 585 },
+  { attackUntil: 0, nextMoveAt: 0, x: 640, y: 585, targetX: 640, targetY: 585 },
+  { attackUntil: 0, nextMoveAt: 0, x: 500, y: 585, targetX: 500, targetY: 585 },
+  { attackUntil: 0, nextMoveAt: 0, x: 780, y: 585, targetX: 780, targetY: 585 },
 ];
 const grunts: GruntState[] = [
   {
-    actor: { x: 390, y: 334, targetX: 390, targetY: 334 },
+    actor: { attackUntil: 0, nextMoveAt: 0, x: 390, y: 334, targetX: 390, targetY: 334 },
     attackBeatModulo: 3,
     attackPhaseUntil: 0,
     hp: 120,
@@ -142,7 +144,7 @@ const grunts: GruntState[] = [
     side: 'left',
   },
   {
-    actor: { x: 890, y: 332, targetX: 890, targetY: 332 },
+    actor: { attackUntil: 0, nextMoveAt: 0, x: 890, y: 332, targetX: 890, targetY: 332 },
     attackBeatModulo: 4,
     attackPhaseUntil: 0,
     hp: 132,
@@ -226,6 +228,20 @@ function moveActor(actor: FieldActor, speed: number, deltaSeconds: number) {
   actor.y = approach(actor.y, actor.targetY, maxStep);
 }
 
+function isActorMoving(actor: FieldActor) {
+  return Math.abs(actor.x - actor.targetX) > 1.5 || Math.abs(actor.y - actor.targetY) > 1.5;
+}
+
+function scheduleMove(actor: FieldActor, now: number, baseX: number, baseY: number, rangeX: number, rangeY: number, minDelay: number, maxDelay: number) {
+  if (now < actor.nextMoveAt || isActorMoving(actor) || now < actor.attackUntil) {
+    return;
+  }
+
+  actor.targetX = baseX + (Math.random() * 2 - 1) * rangeX;
+  actor.targetY = baseY + (Math.random() * 2 - 1) * rangeY;
+  actor.nextMoveAt = now + minDelay + Math.random() * (maxDelay - minDelay);
+}
+
 function addFloatingText(text: string, x: number, y: number, color: string) {
   floatingTexts.push({ text, x, y, color, ttl: 0.85 });
 }
@@ -236,6 +252,18 @@ function addEffect(type: PixelEffect['type'], x: number, y: number, color: strin
 
 function addSpriteEffect(type: SpriteSheetEffect['type'], x: number, y: number, scale: number, duration: number, alpha = 1) {
   spriteSheetEffects.push(createSpriteSheetEffect(type, x, y, scale, duration, alpha));
+}
+
+function getCharacterSpriteEffect(characterName: string, action: 'heavy' | 'weak' = 'weak'): SpriteSheetEffect['type'] {
+  if (characterName === 'Z-02') {
+    return 'impactGold';
+  }
+
+  if (characterName === 'Z-03') {
+    return 'kineticTeal';
+  }
+
+  return action === 'weak' ? 'slash' : 'projectile';
 }
 
 function setActivePose(pose: CharacterPose, now: number, durationSeconds: number) {
@@ -549,13 +577,7 @@ function applyAttack(action: 'weak' | 'heavy', grade: Grade, now: number, chainS
         ? '#f0f3f7'
         : '#f5c84c';
   const activeSpriteEffect =
-    activeCharacter.name === 'Z-02'
-      ? 'impactGold'
-      : activeCharacter.name === 'Z-03'
-        ? 'kineticTeal'
-        : action === 'weak'
-          ? 'slash'
-          : 'projectile';
+    getCharacterSpriteEffect(activeCharacter.name, action);
   addEffect(action === 'weak' ? 'slashArc' : 'hitSpark', 640, 265, activeEffectColor, multiplier);
   addSpriteEffect(
     activeSpriteEffect,
@@ -588,8 +610,8 @@ function applyUltimate(grade: Grade, now: number) {
   score += Math.round(700 * multiplier);
   addEffect('tagParryFlash', 640, 410, activeCharacter.accent, 1.45 * multiplier);
   addEffect('hitSpark', 640, 255, activeCharacter.accent, 1.6 * multiplier);
-  addSpriteEffect(activeCharacter.name === 'Z-03' ? 'kineticTeal' : 'slash', 640, 360, 0.75, 0.44, 1);
-  addSpriteEffect(activeCharacter.name === 'Z-02' ? 'impactGold' : activeCharacter.name === 'Z-03' ? 'kineticTeal' : 'projectile', 640, 340, 0.65, 0.5, 0.95);
+  addSpriteEffect(getCharacterSpriteEffect(activeCharacter.name), 640, 360, 0.75, 0.44, 1);
+  addSpriteEffect(getCharacterSpriteEffect(activeCharacter.name, 'heavy'), 640, 340, 0.65, 0.5, 0.95);
   addEffect('beatRing', 1120, 610, '#f5c84c', 1.3 * multiplier);
   addFloatingText(`${activeCharacter.name} ULTIMATE`, 640, 500, '#f5c84c');
 }
@@ -711,17 +733,19 @@ function resetFight() {
   lastGruntBeat = -1;
   bossActor.x = 640;
   bossActor.y = 340;
+  bossActor.attackUntil = 0;
+  bossActor.nextMoveAt = 0;
   bossActor.targetX = 640;
   bossActor.targetY = 340;
-  characterActors[0] = { x: 640, y: 585, targetX: 640, targetY: 585 };
-  characterActors[1] = { x: 500, y: 585, targetX: 500, targetY: 585 };
-  characterActors[2] = { x: 780, y: 585, targetX: 780, targetY: 585 };
+  characterActors[0] = { attackUntil: 0, nextMoveAt: 0, x: 640, y: 585, targetX: 640, targetY: 585 };
+  characterActors[1] = { attackUntil: 0, nextMoveAt: 0, x: 500, y: 585, targetX: 500, targetY: 585 };
+  characterActors[2] = { attackUntil: 0, nextMoveAt: 0, x: 780, y: 585, targetX: 780, targetY: 585 };
   grunts[0].hp = grunts[0].maxHp;
   grunts[0].attackPhaseUntil = 0;
-  grunts[0].actor = { x: 390, y: 334, targetX: 390, targetY: 334 };
+  grunts[0].actor = { attackUntil: 0, nextMoveAt: 0, x: 390, y: 334, targetX: 390, targetY: 334 };
   grunts[1].hp = grunts[1].maxHp;
   grunts[1].attackPhaseUntil = 0;
-  grunts[1].actor = { x: 890, y: 332, targetX: 890, targetY: 332 };
+  grunts[1].actor = { attackUntil: 0, nextMoveAt: 0, x: 890, y: 332, targetX: 890, targetY: 332 };
   attacks.length = 0;
   inputHistory.length = 0;
   floatingTexts.length = 0;
@@ -802,11 +826,11 @@ function drawParty(now: number) {
   supportCharacters.forEach((character, index) => {
     const characterIndex = supportIndexes[index];
     const actor = characterActors[characterIndex];
-    const supportPose: CharacterPose = Math.floor(getBeatFloat(now) * 2 + index) % 4 === 0 ? 'weak1' : 'idle';
+    const supportPose: CharacterPose = now < actor.attackUntil ? 'weak1' : isActorMoving(actor) ? 'walk' : 'idle';
 
     gameContext.globalAlpha = 0.65;
     drawPixelCharacter(gameContext, character, actor.x, actor.y, 2.15, {
-      active: supportPose !== 'idle',
+      active: supportPose !== 'idle' && supportPose !== 'walk',
       beat: getBeatFloat(now) + index * 0.35,
       counter: false,
       evading: false,
@@ -817,12 +841,13 @@ function drawParty(now: number) {
   });
 
   const activeActor = characterActors[activeCharacterIndex];
+  const activePoseNow = now <= activePoseUntil ? activePose : isActorMoving(activeActor) ? 'walk' : isCounter ? 'counter' : 'idle';
   drawPixelCharacter(gameContext, activeCharacter, activeActor.x + lean, activeActor.y, 2.85, {
     active: true,
     beat: getBeatFloat(now),
     counter: isCounter,
     evading: isEvading,
-    pose: now <= activePoseUntil ? activePose : isCounter ? 'counter' : 'idle',
+    pose: activePoseNow,
   });
   drawText(activeCharacter.name, activeActor.x + lean, activeActor.y + 98, 15, activeCharacter.accent, 'center');
 }
@@ -976,8 +1001,10 @@ function updateSupportAttacks(now: number) {
 
     if (sideGrunt) {
       const damage = 2.6 + character.groggyPower * 0.8;
+      characterActors[characterIndex].attackUntil = now + 0.42;
       sideGrunt.hp = clamp(sideGrunt.hp - damage, 0, sideGrunt.maxHp);
       addEffect('hitSpark', sideGrunt.actor.x, sideGrunt.actor.y + 28, character.accent, 0.35);
+      addSpriteEffect(getCharacterSpriteEffect(character.name), sideGrunt.actor.x, sideGrunt.actor.y + 18, 0.32, 0.24, 0.78);
 
       if (sideGrunt.hp === 0) {
         addEffect('pixelBurst', sideGrunt.actor.x, sideGrunt.actor.y + 24, character.accent, 0.9);
@@ -988,8 +1015,10 @@ function updateSupportAttacks(now: number) {
     }
 
     supportGroggy += 0.22 * character.groggyPower;
+    characterActors[characterIndex].attackUntil = now + 0.42;
     bossHp = clamp(bossHp - 0.45, 0, 100);
     addEffect('hitSpark', bossActor.x + (side === 'left' ? -80 : 80), bossActor.y + 34, character.accent, 0.25);
+    addSpriteEffect(getCharacterSpriteEffect(character.name), bossActor.x + (side === 'left' ? -92 : 92), bossActor.y + 34, 0.38, 0.24, 0.72);
   });
 
   groggy = clamp(groggy + supportGroggy, 0, 100);
@@ -1011,21 +1040,21 @@ function updateGruntAttacks(now: number) {
     }
 
     grunt.attackPhaseUntil = now + 0.42;
+    grunt.actor.attackUntil = now + 0.42;
     addEffect('warningPulse', grunt.actor.x, grunt.actor.y + 38, grunt.id === 'EG-01' ? '#f5c84c' : '#ff5a6e', 0.45);
   });
 }
 
 function updateFieldMotion(deltaSeconds: number, now: number) {
-  const beat = getBeatFloat(now);
-  bossActor.targetX = 640 + Math.sin(beat * 0.34) * 16;
-  bossActor.targetY = (isBossGroggy(now) ? 365 : getActiveAttack(now)?.move === 'slam' ? 350 : 340) + Math.sin(beat * 0.21) * 5;
+  const activeAttack = getActiveAttack(now);
+  const bossHomeY = isBossGroggy(now) ? 365 : activeAttack?.move === 'slam' ? 350 : 340;
+  scheduleMove(bossActor, now, 640, bossHomeY, 14, 5, 2.4, 4.4);
   moveActor(bossActor, 36, deltaSeconds);
 
   grunts.forEach((grunt, index) => {
     const homeX = grunt.side === 'left' ? 390 : 890;
     const homeY = grunt.side === 'left' ? 334 : 332;
-    grunt.actor.targetX = homeX + Math.sin(beat * 0.7 + index * 1.7) * 18;
-    grunt.actor.targetY = homeY + Math.cos(beat * 0.52 + index) * 8;
+    scheduleMove(grunt.actor, now, homeX, homeY, 22, 10, 1.1 + index * 0.2, 2.2 + index * 0.3);
     moveActor(grunt.actor, 44, deltaSeconds);
   });
 
@@ -1033,8 +1062,8 @@ function updateFieldMotion(deltaSeconds: number, now: number) {
   const supportSides: Array<'left' | 'right'> = ['left', 'right'];
   characterActors.forEach((actor, index) => {
     if (index === activeCharacterIndex) {
-      actor.targetX = 640 + Math.sin(beat * 0.42) * 10;
-      actor.targetY = 585 + Math.cos(beat * 0.33) * 4;
+      actor.targetX = 640;
+      actor.targetY = 585;
       moveActor(actor, 220, deltaSeconds);
       return;
     }
@@ -1042,8 +1071,7 @@ function updateFieldMotion(deltaSeconds: number, now: number) {
     const supportSideIndex = supportIndexes.indexOf(index);
     const side = supportSides[supportSideIndex] ?? 'left';
     const target = getSupportTarget(side);
-    actor.targetX = target.x + Math.sin(beat * 0.9 + index) * 28;
-    actor.targetY = target.y + Math.cos(beat * 0.65 + index) * 16;
+    scheduleMove(actor, now, target.x, target.y, 42, 24, 0.9 + index * 0.15, 1.9 + index * 0.2);
     moveActor(actor, 130, deltaSeconds);
   });
 }
@@ -1078,11 +1106,11 @@ function render(nowMs: number) {
 
   drawBoss(now);
   drawAttackRead(now);
-  drawParty(now);
   drawSpriteSheetEffects(gameContext, spriteSheetEffects);
+  drawPixelEffects(gameContext, pixelEffects);
+  drawParty(now);
   drawBeatRing(now);
   drawHud(now);
-  drawPixelEffects(gameContext, pixelEffects);
   drawFloatingTexts(deltaSeconds);
 
   requestAnimationFrame(render);

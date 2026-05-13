@@ -7,6 +7,7 @@ export type CharacterPose =
   | 'idle'
   | 'tagParry'
   | 'ultimate'
+  | 'walk'
   | 'weak1'
   | 'weak2'
   | 'weak3';
@@ -123,6 +124,10 @@ function selectCombatFrame(pose: CharacterPose, beat: number, active: boolean) {
 
   if (pose === 'ultimate') {
     return pulse === 0 ? combatFrames.tagReady : combatFrames.tagImpact;
+  }
+
+  if (pose === 'walk') {
+    return Math.floor(beat * 4) % 2 === 0 ? combatFrames.idleA : combatFrames.idleB;
   }
 
   return Math.floor(beat * 2) % 2 === 0 ? combatFrames.idleA : combatFrames.idleB;
