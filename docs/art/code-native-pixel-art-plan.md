@@ -39,6 +39,7 @@ Use code for:
 Runtime pixel definitions live in:
 
 - `src/pixelSprites.ts`
+- `src/pixelFrameData.ts`
 
 Current exports:
 
@@ -46,6 +47,9 @@ Current exports:
 - `coreBrutePalette`
 - `drawPixelCharacter`
 - `drawPixelBoss`
+- `z01Palette`
+- `z01Frames`
+- `drawPixelFrame`
 
 Character data also includes:
 
@@ -63,20 +67,23 @@ Current prototype usage:
 - Party characters are drawn from code-defined pixel blocks.
 - Boss is drawn from code-defined pixel blocks.
 - Yellow/red warning attacks are still driven by combat logic.
-- Active character sprites now use a larger code-native pixel structure with face pixels: eyes, eyelids, nose, and mouth.
-- Support sprites use the same structure at a smaller scale so all three characters stay visually consistent.
+- Z-01 now uses explicit `PixelFrame` data for `frontIdle`, `backIdle`, and `supportIdle`.
+- Z-02 and Z-03 still use the procedural block renderer until their sheets are approved.
 
 ## Next Step
 
-Move from procedural block sprites to frame data:
+Expand frame data:
 
 ```ts
-type PixelFrame = Array<[x: number, y: number, width: number, height: number, colorToken: string]>;
+type PixelPart = [x: number, y: number, width: number, height: number, colorToken: string];
+
+interface PixelFrame {
+  parts: PixelPart[];
+}
 ```
 
 Then define:
 
-- `z01.idle.back`
 - `z01.weak.1`
 - `z01.weak.2`
 - `z01.weak.3`

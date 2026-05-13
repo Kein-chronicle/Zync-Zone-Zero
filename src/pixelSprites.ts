@@ -1,3 +1,5 @@
+import { drawPixelFrame, z01Frames, z01Palette } from './pixelFrameData';
+
 export interface PixelCharacter {
   name: string;
   accent: string;
@@ -93,6 +95,12 @@ export function drawPixelCharacter(
   ctx.save();
   ctx.translate(Math.round(x), Math.round(y));
   ctx.imageSmoothingEnabled = false;
+
+  if (character.name === 'Z-01') {
+    ctx.restore();
+    drawPixelFrame(ctx, options.active ? z01Frames.backIdle : z01Frames.supportIdle, z01Palette, x, y, scale);
+    return;
+  }
 
   const bounce = Math.round(Math.sin(options.beat * Math.PI * 2) * (options.active ? 2 : 1));
   const lean = options.evading ? -4 : 0;
