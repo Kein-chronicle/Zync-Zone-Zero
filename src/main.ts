@@ -1,4 +1,5 @@
 import './styles.css';
+import { coreBrutePalette, drawPixelBoss, drawPixelCharacter, pixelCharacters } from './pixelSprites';
 
 type Action = 'weak' | 'heavy' | 'dodge' | 'tag';
 type Grade = 'MISS' | 'BAD' | 'GOOD' | 'PERFECT';
@@ -25,11 +26,6 @@ interface FloatingText {
   y: number;
   color: string;
   ttl: number;
-}
-
-interface Character {
-  name: string;
-  color: string;
 }
 
 const app = document.querySelector<HTMLDivElement>('#app');
@@ -66,11 +62,7 @@ const attackPattern: Array<{ move: EnemyMove; guardType: GuardType; windup: numb
   { move: 'slash', guardType: 'parryable', windup: 5, impact: 6 },
   { move: 'slam', guardType: 'unparryable', windup: 12, impact: 13 },
 ];
-const characters: Character[] = [
-  { name: 'Z-01', color: '#f0f3f7' },
-  { name: 'Z-02', color: '#f5c84c' },
-  { name: 'Z-03', color: '#0fb9b1' },
-];
+const characters = pixelCharacters;
 const keys: Record<string, Action> = {
   j: 'weak',
   k: 'heavy',
@@ -427,14 +419,14 @@ function handleAction(action: Action) {
       groggy = clamp(groggy + 24 * multiplier, 0, 100);
       energy = clamp(energy + 16 * multiplier, 0, 100);
       score += Math.round(280 * multiplier);
-      addFloatingText(`${nextCharacter.name} TAG PARRY`, 640, 465, nextCharacter.color);
+      addFloatingText(`${nextCharacter.name} TAG PARRY`, 640, 465, nextCharacter.accent);
     } else if (findUnparryableTarget(now)) {
       combo = 0;
       sync = clamp(sync - 8, 0, 100);
       addFloatingText('TAG BLOCKED', 640, 575, '#ff5a6e');
     } else {
       counterUntil = now + 0.55;
-      addFloatingText(`${nextCharacter.name} TAG IN`, 640, 575, nextCharacter.color);
+      addFloatingText(`${nextCharacter.name} TAG IN`, 640, 575, nextCharacter.accent);
     }
   }
 
@@ -486,59 +478,16 @@ function drawText(text: string, x: number, y: number, size: number, color: strin
 function drawBoss(now: number) {
   const activeAttack = getActiveAttack(now);
   const phase = getAttackPhase(activeAttack, now);
-  const beatPulse = 1 + Math.sin(getBeatFloat(now) * Math.PI * 2) * 0.018;
-  const impactPulse = phase === 'impact' ? 1.12 : 1;
   const attackColor = activeAttack?.guardType === 'unparryable' ? '#ff5a6e' : '#f5c84c';
   const x = 640;
   const y = activeAttack?.move === 'slam' ? 240 : 220;
-  const width = 380 * beatPulse * impactPulse;
-  const height = 245 * beatPulse * impactPulse;
-  const color =
-    phase === 'impact'
-      ? activeAttack?.guardType === 'unparryable'
-        ? '#3b2029'
-        : '#39311f'
-      : phase === 'windup'
-        ? activeAttack?.guardType === 'unparryable'
-          ? '#302229'
-          : '#302b20'
-        : '#242932';
-  const armOffset = phase === 'windup' ? 48 : phase === 'impact' ? -30 : 0;
-  const attackLean = activeAttack?.move === 'thrust' ? 34 : activeAttack?.move === 'slash' ? -28 : 0;
 
-  gameContext.fillStyle = color;
-  gameContext.beginPath();
-  gameContext.roundRect(x - width / 2 + attackLean, y - height / 2, width, height, 34);
-  gameContext.fill();
-
-  gameContext.strokeStyle = activeAttack ? attackColor : '#0fb9b1';
-  gameContext.lineWidth = 12;
-  gameContext.beginPath();
-
-  if (activeAttack?.move === 'slam') {
-    gameContext.moveTo(x - 125, y - 70 - armOffset);
-    gameContext.lineTo(x - 40, y + 80 + armOffset);
-    gameContext.moveTo(x + 125, y - 70 - armOffset);
-    gameContext.lineTo(x + 40, y + 80 + armOffset);
-  } else if (activeAttack?.move === 'thrust') {
-    gameContext.moveTo(x - 150, y + 40);
-    gameContext.lineTo(x + 165 + armOffset, y + 18);
-    gameContext.moveTo(x - 145, y + 72);
-    gameContext.lineTo(x + 130 + armOffset, y + 72);
-  } else {
-    gameContext.moveTo(x - 150 - armOffset, y - 35);
-    gameContext.lineTo(x + 130 + armOffset, y + 85);
-    gameContext.moveTo(x + 150 + armOffset, y - 35);
-    gameContext.lineTo(x - 130 - armOffset, y + 85);
-  }
-
-  gameContext.stroke();
-
-  gameContext.fillStyle = '#ff5a6e';
-  gameContext.beginPath();
-  gameContext.arc(x - 82 + attackLean * 0.25, y - 26, 18, 0, Math.PI * 2);
-  gameContext.arc(x + 82 + attackLean * 0.25, y - 26, 18, 0, Math.PI * 2);
-  gameContext.fill();
+  drawPixelBoss(gameContext, x, y, 4, coreBrutePalette, {
+    beat: getBeatFloat(now),
+    move: activeAttack?.move,
+    phase,
+    warningColor: activeAttack ? attackColor : coreBrutePalette.armor,
+  });
 
   const label = activeAttack
     ? `${activeAttack.move.toUpperCase()} · ${activeAttack.guardType === 'parryable' ? 'PARRY' : 'DODGE'}`
@@ -557,49 +506,26 @@ function drawParty(now: number) {
   const supportCharacters = characters.filter((_, index) => index !== activeCharacterIndex);
 
   supportCharacters.forEach((character, index) => {
-    const supportPulse = 1 + Math.sin((getBeatFloat(now) + index * 0.35) * Math.PI * 2) * 0.08;
     const supportX = supportSlots[index];
 
     gameContext.globalAlpha = 0.65;
-    gameContext.fillStyle = character.color;
-    gameContext.beginPath();
-    gameContext.arc(supportX, y - 52 - supportPulse * 6, 18, 0, Math.PI * 2);
-    gameContext.fill();
-
-    gameContext.fillStyle = '#252b34';
-    gameContext.beginPath();
-    gameContext.roundRect(supportX - 26, y - 25, 52, 74, 16);
-    gameContext.fill();
-
-    gameContext.strokeStyle = character.color;
-    gameContext.lineWidth = 4;
-    gameContext.beginPath();
-    gameContext.moveTo(supportX - 54, y + 12);
-    gameContext.lineTo(supportX + 54, y - 8);
-    gameContext.stroke();
+    drawPixelCharacter(gameContext, character, supportX, y, 3, {
+      active: false,
+      beat: getBeatFloat(now) + index * 0.35,
+      counter: false,
+      evading: false,
+    });
     gameContext.globalAlpha = 1;
     drawText(character.name, supportX, y + 72, 13, '#8a95a8', 'center');
   });
 
-  gameContext.fillStyle = isCounter ? activeCharacter.color : '#f0f3f7';
-  gameContext.beginPath();
-  gameContext.arc(x + lean, y - 78, 28, 0, Math.PI * 2);
-  gameContext.fill();
-
-  gameContext.fillStyle = isEvading ? '#b8eef0' : '#d9dee8';
-  gameContext.beginPath();
-  gameContext.roundRect(x - 48 + lean, y - 46, 96, 120, 22);
-  gameContext.fill();
-
-  gameContext.strokeStyle = activeCharacter.color;
-  gameContext.lineWidth = 6;
-  gameContext.beginPath();
-  gameContext.moveTo(x - 96 + lean, y + 18);
-  gameContext.lineTo(x - 18 + lean, y - 22);
-  gameContext.moveTo(x + 96 + lean, y + 18);
-  gameContext.lineTo(x + 18 + lean, y - 22);
-  gameContext.stroke();
-  drawText(activeCharacter.name, x + lean, y + 98, 15, activeCharacter.color, 'center');
+  drawPixelCharacter(gameContext, activeCharacter, x + lean, y, 4, {
+    active: true,
+    beat: getBeatFloat(now),
+    counter: isCounter,
+    evading: isEvading,
+  });
+  drawText(activeCharacter.name, x + lean, y + 98, 15, activeCharacter.accent, 'center');
 }
 
 function drawAttackRead(now: number) {
