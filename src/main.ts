@@ -2,6 +2,7 @@ import './styles.css';
 import { createPixelEffect, drawPixelEffects, type PixelEffect, updatePixelEffects } from './pixelEffects';
 import { drawPixelCityStage } from './pixelEnvironment';
 import { coreBrutePalette, drawPixelBoss, drawPixelCharacter, pixelCharacters } from './pixelSprites';
+import type { CharacterPose } from './spriteSheetSprites';
 
 type Action = 'weak' | 'heavy' | 'dodge' | 'tag';
 type Grade = 'MISS' | 'BAD' | 'GOOD' | 'PERFECT';
@@ -89,6 +90,8 @@ let attackId = 0;
 let evasionUntil = 0;
 let counterUntil = 0;
 let activeCharacterIndex = 0;
+let activePose: CharacterPose = 'idle';
+let activePoseUntil = 0;
 let lastSupportBeat = -1;
 const attacks: EnemyAttack[] = [];
 const inputHistory: CombatInput[] = [];
@@ -156,6 +159,11 @@ function addFloatingText(text: string, x: number, y: number, color: string) {
 
 function addEffect(type: PixelEffect['type'], x: number, y: number, color: string, intensity = 1) {
   pixelEffects.push(createPixelEffect(type, x, y, color, intensity));
+}
+
+function setActivePose(pose: CharacterPose, now: number, durationSeconds: number) {
+  activePose = pose;
+  activePoseUntil = now + durationSeconds;
 }
 
 function generateEnemyAttacks(currentBeat: number) {
@@ -430,11 +438,13 @@ function handleAction(action: Action) {
   score += Math.round(90 * multiplier * (1 + combo / 45));
 
   if (action === 'weak' || action === 'heavy') {
+    setActivePose(action, now, action === 'weak' ? 0.36 : 0.48);
     applyAttack(action, grade, now);
   }
 
   if (action === 'dodge') {
     const target = findDodgeTarget(now);
+    setActivePose('dodge', now, 0.46);
     evasionUntil = now + (grade === 'PERFECT' ? 0.55 : 0.38);
     addEffect('afterimage', 640, 585, '#0fb9b1', multiplier);
 
@@ -455,6 +465,7 @@ function handleAction(action: Action) {
     const nextCharacter = characters[nextCharacterIndex];
     const target = findParryTarget(now);
     activeCharacterIndex = nextCharacterIndex;
+    setActivePose('tagParry', now, target ? 0.62 : 0.42);
 
     lastAction = `TAG ${nextCharacter.name}`;
 
@@ -500,6 +511,8 @@ function resetFight() {
   evasionUntil = 0;
   counterUntil = 0;
   activeCharacterIndex = 0;
+  activePose = 'idle';
+  activePoseUntil = 0;
   lastSupportBeat = -1;
   attacks.length = 0;
   inputHistory.length = 0;
@@ -573,6 +586,7 @@ function drawParty(now: number) {
       beat: getBeatFloat(now) + index * 0.35,
       counter: false,
       evading: false,
+      pose: 'idle',
     });
     gameContext.globalAlpha = 1;
     drawText(character.name, supportX, y + 72, 13, '#8a95a8', 'center');
@@ -583,6 +597,7 @@ function drawParty(now: number) {
     beat: getBeatFloat(now),
     counter: isCounter,
     evading: isEvading,
+    pose: now <= activePoseUntil ? activePose : isCounter ? 'counter' : 'idle',
   });
   drawText(activeCharacter.name, x + lean, y + 98, 15, activeCharacter.accent, 'center');
 }

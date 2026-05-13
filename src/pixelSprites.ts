@@ -1,4 +1,4 @@
-import { drawPixelFrame, z01Frames, z01Palette } from './pixelFrameData';
+import { drawZ01SpriteSheetCharacter, type CharacterPose } from './spriteSheetSprites';
 
 export interface PixelCharacter {
   name: string;
@@ -22,6 +22,7 @@ interface CharacterDrawOptions {
   evading: boolean;
   counter: boolean;
   beat: number;
+  pose: CharacterPose;
 }
 
 interface BossDrawOptions {
@@ -98,7 +99,11 @@ export function drawPixelCharacter(
 
   if (character.name === 'Z-01') {
     ctx.restore();
-    drawPixelFrame(ctx, options.active ? z01Frames.backIdle : z01Frames.supportIdle, z01Palette, x, y, scale);
+    drawZ01SpriteSheetCharacter(ctx, x, y, scale, {
+      active: options.active,
+      beat: options.beat,
+      pose: options.pose,
+    });
     return;
   }
 
