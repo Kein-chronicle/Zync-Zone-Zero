@@ -899,6 +899,85 @@ function drawRhythmAtmosphere(now: number) {
   gameContext.restore();
 }
 
+function drawRhythmLane(now: number) {
+  const beatFloat = getBeatFloat(now);
+  const laneStartX = 236;
+  const laneEndX = 1120;
+  const laneY = 610;
+  const travelBeats = 4;
+  const phase = beatFloat - Math.floor(beatFloat);
+  const pulse = Math.pow(1 - phase, 2.4);
+
+  gameContext.save();
+  gameContext.globalAlpha = 0.9;
+  gameContext.strokeStyle = '#1b5662';
+  gameContext.lineWidth = 3;
+  gameContext.beginPath();
+  gameContext.moveTo(laneStartX, laneY);
+  gameContext.lineTo(laneEndX, laneY);
+  gameContext.stroke();
+
+  gameContext.globalAlpha = 0.22 + pulse * 0.24;
+  gameContext.strokeStyle = '#0fb9b1';
+  gameContext.lineWidth = 8;
+  gameContext.beginPath();
+  gameContext.moveTo(laneStartX, laneY);
+  gameContext.lineTo(laneEndX, laneY);
+  gameContext.stroke();
+
+  for (let index = 0; index < 12; index += 1) {
+    const tickX = laneStartX + index * ((laneEndX - laneStartX) / 11);
+    gameContext.globalAlpha = index === 11 ? 0.7 : 0.22;
+    gameContext.fillStyle = index === 11 ? '#dff6ff' : '#0fb9b1';
+    gameContext.fillRect(Math.round(tickX - 2), laneY - 8, 4, 16);
+  }
+
+  const firstBeat = Math.floor(beatFloat) - 1;
+  const lastBeat = Math.ceil(beatFloat + travelBeats + 1);
+
+  for (let targetBeat = firstBeat; targetBeat <= lastBeat; targetBeat += 1) {
+    const progress = 1 - (targetBeat - beatFloat) / travelBeats;
+
+    if (progress < -0.04 || progress > 1.12) {
+      continue;
+    }
+
+    const x = laneStartX + (laneEndX - laneStartX) * progress;
+    const passed = progress > 1;
+    const distanceToPerfect = Math.abs(progress - 1);
+    const nodeRadius = 12 + Math.max(0, 1 - distanceToPerfect * 5) * 5;
+    const alpha = passed ? Math.max(0, 1 - (progress - 1) * 6) : 0.62 + Math.max(0, 1 - distanceToPerfect * 3) * 0.32;
+
+    gameContext.globalAlpha = alpha;
+    gameContext.shadowColor = '#0fb9b1';
+    gameContext.shadowBlur = 10 + Math.max(0, 1 - distanceToPerfect * 4) * 18;
+    gameContext.fillStyle = '#dff6ff';
+    gameContext.beginPath();
+    gameContext.arc(x, laneY, nodeRadius, 0, Math.PI * 2);
+    gameContext.fill();
+    gameContext.strokeStyle = '#0fb9b1';
+    gameContext.lineWidth = 3;
+    gameContext.stroke();
+    gameContext.shadowBlur = 0;
+
+    gameContext.globalAlpha = alpha * 0.48;
+    gameContext.fillStyle = '#0fb9b1';
+    gameContext.beginPath();
+    gameContext.arc(x, laneY, Math.max(4, nodeRadius * 0.35), 0, Math.PI * 2);
+    gameContext.fill();
+  }
+
+  gameContext.globalAlpha = 0.38 + pulse * 0.34;
+  gameContext.strokeStyle = '#dff6ff';
+  gameContext.lineWidth = 3 + pulse * 2;
+  gameContext.beginPath();
+  gameContext.arc(laneEndX, laneY, 26 + pulse * 5, 0, Math.PI * 2);
+  gameContext.stroke();
+
+  gameContext.globalAlpha = 1;
+  gameContext.restore();
+}
+
 function drawBoss(now: number) {
   const activeAttack = getActiveAttack(now);
   const groggyActive = isBossGroggy(now);
@@ -1246,6 +1325,7 @@ function render(nowMs: number) {
   drawSpriteSheetEffects(gameContext, spriteSheetEffects);
   drawPixelEffects(gameContext, pixelEffects);
   drawParty(now);
+  drawRhythmLane(now);
   drawBeatRing(now);
   drawHud(now);
   drawFloatingTexts(deltaSeconds);
