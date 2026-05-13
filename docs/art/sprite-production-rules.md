@@ -20,6 +20,8 @@ The production flow is:
 6. Frame placement validation
 7. Metadata registration
 8. Game integration
+9. Runtime screenshot validation
+10. Regeneration or approval
 
 ## Required Additions To The Proposed Flow
 
@@ -76,11 +78,35 @@ Default group size:
 - `4x2`: acceptable for simple loops
 - `4x4`: only for concept review or low-risk pose families
 
+### 2.5 Sheet Geometry Lock
+
+Prompts request exact canvas and cell sizes, but generated images can still return slightly different pixel dimensions.
+
+Do not assume the generated file is exactly `1024x1024` or `2048x2048`.
+
+Runtime slicing must use:
+
+- actual image natural width
+- actual image natural height
+- declared columns
+- declared rows
+- per-sheet source inset
+
+Example:
+
+```ts
+const sourceCellWidth = image.naturalWidth / columns;
+const sourceCellHeight = image.naturalHeight / rows;
+```
+
+Never hardcode source pixel rectangles from the requested prompt size unless the file has been normalized by a local tool.
+
 ### 3. Validation Gate
 
 Before importing into the game, each generated sheet must pass:
 
 - no pose crosses a cell boundary
+- no visible grid line remains inside a sliced frame
 - no cropped weapon, hair, limb, effect, shadow, or cloth
 - no external props unless explicitly required
 - no labels, text, frame numbers, UI, watermark, or scenery
@@ -90,6 +116,10 @@ Before importing into the game, each generated sheet must pass:
 - consistent feet baseline
 - clean silhouette at gameplay size
 - background removable without damaging the sprite
+- actual file dimensions recorded
+- columns and rows recorded
+- source inset recorded
+- runtime screenshot checked after integration
 
 Failed sheets are not manually patched unless the fix is tiny.
 
@@ -103,6 +133,9 @@ Every approved sprite sheet needs metadata:
 interface SpriteFrameMeta {
   id: string;
   sheet: string;
+  columns: number;
+  rows: number;
+  sourceInset: number;
   x: number;
   y: number;
   width: number;
@@ -110,6 +143,8 @@ interface SpriteFrameMeta {
   anchorX: number;
   anchorY: number;
   durationMs: number;
+  event?: 'startup' | 'active' | 'recovery' | 'hit' | 'invulnerable' | 'parry' | 'none';
+  hurtbox?: 'standing' | 'crouched' | 'airborne' | 'downed' | 'none';
   tags: string[];
 }
 ```
@@ -117,6 +152,57 @@ interface SpriteFrameMeta {
 Do not hardcode frame rectangles inside rendering logic.
 
 Rendering code should consume metadata.
+
+## Runtime Layering Contract
+
+Render order must be explicit.
+
+Default combat order:
+
+1. stage background
+2. boss shadow and boss body
+3. boss warning/telegraph effects
+4. support characters
+5. midline travel effects
+6. active character
+7. player-local effects: parry, dodge, afterimage, charge
+8. boss impact effects
+9. floating combat text
+10. HUD
+
+Character sprites should not contain large distant hit effects.
+
+Effect sprites should not contain characters.
+
+If an effect must appear behind the character, metadata should mark it as `layer: 'behind-character'`.
+
+If an effect must appear over the boss, metadata should mark it as `target: 'boss'`.
+
+## Timing And Event Contract
+
+Every action animation needs timing metadata, not just images.
+
+Use frame events:
+
+- `startup`: input has begun, no hit yet
+- `active`: can hit, parry, dodge, or trigger gameplay result
+- `hit`: visual impact frame
+- `recovery`: character returns to control
+- `invulnerable`: dodge or special movement safety window
+- `parry`: tag/parry contact frame
+- `none`: cosmetic frame only
+
+Example:
+
+```ts
+const z01Weak1Timeline = [
+  { frame: 'z01_weak1_startup', durationMs: 80, event: 'startup' },
+  { frame: 'z01_weak1_impact', durationMs: 90, event: 'hit' },
+  { frame: 'z01_weak1_recovery', durationMs: 120, event: 'recovery' },
+];
+```
+
+Do not infer gameplay timing from frame order alone.
 
 ## Character Concept Definition Template
 
@@ -429,9 +515,10 @@ Each pose must stay completely inside its own cell.
 No body part, weapon, hair, cloth, shadow, effect, or motion trail may cross a cell boundary.
 No cropped pose.
 No overlapping frames.
-No labels, text, numbers, UI, watermark, background scenery, or extra objects.
+No labels, text, numbers, arrows, UI, watermark, background scenery, grid lines, cell borders, or extra objects.
 Flat solid chroma-key background: #00ff00.
 Do not use #00ff00 anywhere in the character.
+Leave the background flat and uninterrupted. Do not draw visible cell borders.
 Keep scale, feet baseline, facing direction, and weapon design consistent.
 Keep weapon visibility consistent. Idle, idle breathing, recovery, guard, and ready poses must all show the same weapon in the same hand unless the frame list explicitly says otherwise.
 The boss/enemy target is fixed at the top-center of the screen.
@@ -587,6 +674,17 @@ After removal, validate:
 - no missing hair pixels
 - no damaged weapon glow
 - no broken effect edges
+- no leftover visible cell borders
+- no removed character accent pixels
+
+If chroma key cleanup damages the sprite:
+
+1. regenerate with a different key color
+2. increase padding
+3. reduce glow near the background
+4. split the sheet into fewer frames
+
+Do not manually repaint large missing areas.
 
 ## File Naming
 
@@ -622,6 +720,7 @@ Effect sheets must not include the character unless the sheet is explicitly a fu
 
 Use these categories first:
 
+- `telegraph`: enemy warning shape, ground warning, incoming attack read
 - `slash`: sword trails, blade arcs, cross cuts, finisher cuts
 - `projectile`: magic orb, bullet, energy blade wave, thrown weapon
 - `beam`: laser, magic ray, long thrust trail
@@ -629,6 +728,7 @@ Use these categories first:
 - `parry`: guard ring, parry spark, deflection flash
 - `dodge`: afterimage, dust streak, speed line
 - `buff`: aura, charge ring, rhythm pulse
+- `debuff`: stun marks, groggy symbols, slow field, pressure marks
 - `ultimate`: large contained finisher effect, screen-safe burst
 
 ### Effect Direction Contract
@@ -659,6 +759,8 @@ Each cell: exactly 512x512 pixels.
 Keep the entire effect inside each cell with at least 48 pixels of padding.
 Use a flat solid #00ff00 chroma-key background.
 Do not use #00ff00 inside the effect.
+Do not draw visible cell borders or grid lines.
+Do not include shadows unless the effect is a ground impact effect.
 Keep the effect crisp, high-detail, modern pixel art, not blurry.
 
 Combat direction:
@@ -714,6 +816,9 @@ Frame list:
 interface EffectFrameMeta {
   id: string;
   sheet: string;
+  columns: number;
+  rows: number;
+  sourceInset: number;
   x: number;
   y: number;
   width: number;
@@ -722,7 +827,9 @@ interface EffectFrameMeta {
   anchorY: number;
   durationMs: number;
   blendMode: 'normal' | 'screen' | 'lighter';
+  layer: 'behind-character' | 'midline' | 'over-character' | 'boss-impact' | 'hud-safe';
   target: 'player' | 'midline' | 'boss';
+  event?: 'startup' | 'travel' | 'impact' | 'fade' | 'none';
   tags: string[];
 }
 ```
@@ -761,6 +868,8 @@ It receives:
 - cell height
 - trim mode
 - output frame prefix
+- source inset
+- anchor rule
 
 Default:
 
@@ -771,11 +880,76 @@ cellWidth: 512
 cellHeight: 512
 trimMode: keep-cell
 anchor: bottom-center
+sourceInset: 0-24, chosen after checking grid/border leftovers
 ```
 
 Use `keep-cell` first.
 
 Only use trimmed sprites after anchor metadata is verified.
+
+## Asset Manifest Rule
+
+Every generated sheet should have a small manifest beside code metadata.
+
+The manifest records the source contract, not just the output path.
+
+```ts
+interface SpriteSheetManifest {
+  id: string;
+  kind: 'character' | 'effect' | 'boss' | 'environment';
+  sourcePromptVersion: string;
+  sourceImage: string;
+  runtimeImage: string;
+  columns: number;
+  rows: number;
+  sourceInset: number;
+  backgroundKey: '#00ff00' | '#ff00ff' | string;
+  approved: boolean;
+  issues: string[];
+}
+```
+
+Use `approved: false` for temporary prototype assets.
+
+Do not delete source sheets for approved runtime assets unless the replacement is already committed.
+
+## Regeneration Rules
+
+Regenerate instead of patching when:
+
+- identity changes between frames
+- weapon appears/disappears incorrectly
+- direction points away from the intended target
+- more than one frame crosses a cell boundary
+- chroma key removal damages hair, weapon, face, or major effects
+- frame scale changes enough to affect gameplay readability
+- generated image includes extra enemies, props, UI, labels, or scenery
+
+Patch locally only when:
+
+- a tiny leftover border needs source inset adjustment
+- chroma key leaves a thin fringe
+- metadata anchor or timing is wrong
+- runtime scale needs tuning
+
+## Runtime Screenshot Validation
+
+After integration, capture at least:
+
+- idle screen
+- weak attack screen
+- heavy attack or projectile screen
+- dodge/parry screen if affected
+- ultimate screen if affected
+
+Check:
+
+- sprite is not too large or too small
+- feet align to the intended ground line
+- effect appears between player and boss
+- effect does not hide important HUD text
+- no grid or chroma-key background remains
+- console has no asset loading errors
 
 ## Game Integration Rule
 
