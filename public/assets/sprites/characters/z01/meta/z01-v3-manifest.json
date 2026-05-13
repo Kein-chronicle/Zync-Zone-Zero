@@ -1,0 +1,17 @@
+{
+  "id": "z01-combat-core-v3",
+  "kind": "character",
+  "sourcePromptVersion": "sprite-production-rules@7f9cbd3",
+  "sourceImage": "docs/art/generated/z01-combat-core-v3-source.png",
+  "conceptImage": "docs/art/generated/z01-concept-v3-source.png",
+  "runtimeImage": "public/assets/sprites/characters/z01/sheets/z01-combat-core-v3.png",
+  "columns": 4,
+  "rows": 4,
+  "sourceInset": 4,
+  "backgroundKey": "#00ff00",
+  "approved": false,
+  "issues": [
+    "prototype asset; still needs dedicated hit/down/movement sheets",
+    "generated image natural size is used for slicing instead of assuming requested 2048px"
+  ]
+}

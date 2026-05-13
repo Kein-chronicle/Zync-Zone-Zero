@@ -23,7 +23,7 @@ interface SpriteFrameMeta {
 
 const cellSize = 512;
 const z01Sheet = new Image();
-z01Sheet.src = '/assets/sprites/characters/z01/sheets/z01-combat-core-v2.png';
+z01Sheet.src = '/assets/sprites/characters/z01/sheets/z01-combat-core-v3.png';
 
 function frame(id: string, column: number, row: number): SpriteFrameMeta {
   return {
