@@ -1226,7 +1226,7 @@ function applyAttack(action: 'weak' | 'heavy', grade: Grade, now: number, chainS
     action === 'weak' ? 0.28 : 0.34,
     0.9,
   );
-  addEffect('beatRing', 640, 570, grade === 'PERFECT' ? '#f5c84c' : '#0fb9b1', multiplier);
+  addEffect('beatRing', 640, 625, grade === 'PERFECT' ? '#f5c84c' : '#0fb9b1', multiplier);
   addFloatingText(comboName || grade, 640, 525, comboName ? '#f5c84c' : '#f0f3f7');
   addZync(action === 'weak' ? 7 + chainStep * 1.5 : 12 + chainStep * 2, grade, now);
   score += Math.round(35 * multiplier * activeRole.score);
@@ -1276,7 +1276,7 @@ function applyUltimate(grade: Grade, now: number, phraseCast = false) {
   if (zeroCast) {
     addSpriteEffect('parryPing', 640, 410, 0.8, 0.38, 0.9);
   }
-  addEffect('beatRing', 640, 570, '#f5c84c', 1.3 * multiplier);
+  addEffect('beatRing', 640, 625, '#f5c84c', 1.3 * multiplier);
   addFloatingText(`${activeCharacter.name} ${zeroCast ? 'ZERO ULTIMATE' : 'ULTIMATE'}`, 640, 500, zeroCast ? '#dff6ff' : '#f5c84c');
   return true;
 }
@@ -1391,7 +1391,7 @@ function handleAction(action: Action) {
   if (!isCommandInputTargetOpen(now)) {
     lastAction = 'ACTION PHASE';
     lastGrade = 'GOOD';
-    addEffect('beatRing', 640, 570, '#8a95a8', 0.48);
+    addEffect('beatRing', 640, 625, '#8a95a8', 0.48);
     addFloatingText('ACTION PHASE', 640, 640, '#8a95a8');
     return;
   }
@@ -1667,7 +1667,7 @@ function drawRhythmLane(now: number) {
   const laneLeftX = 150;
   const laneRightX = 1130;
   const laneCenterX = 640;
-  const laneY = 570;
+  const laneY = 625;
   const travelBeats = 4;
   const phase = beatFloat - Math.floor(beatFloat);
   const pulse = Math.pow(1 - phase, 2.4);
@@ -1875,7 +1875,7 @@ function drawBeatRing(now: number) {
   const phase = beatFloat - Math.floor(beatFloat);
   const radius = 38 + (1 - phase) * 30;
   const x = 640;
-  const y = 570;
+  const y = 625;
 
   gameContext.strokeStyle = '#0fb9b1';
   gameContext.lineWidth = 4;
@@ -2137,7 +2137,7 @@ function drawHud(now: number) {
   const bufferWidth = 92;
   const bufferGap = 14;
   const bufferX = (gameCanvas.width - bufferWidth * 4 - bufferGap * 3) / 2;
-  const bufferY = 648;
+  const bufferY = 668;
   for (let index = 0; index < 4; index += 1) {
     const entry = commandBuffer[index];
     const x = bufferX + index * (bufferWidth + bufferGap);
@@ -2399,10 +2399,10 @@ function render(nowMs: number) {
   drawAttackRead(now);
   drawSpriteSheetEffects(gameContext, spriteSheetEffects, { excludeType: 'parryPing' });
   drawPixelEffects(gameContext, pixelEffects);
-  drawParty(now);
-  drawSpriteSheetEffects(gameContext, spriteSheetEffects, { onlyType: 'parryPing' });
   drawRhythmLane(now);
   drawBeatRing(now);
+  drawParty(now);
+  drawSpriteSheetEffects(gameContext, spriteSheetEffects, { onlyType: 'parryPing' });
   drawZeroFieldFeedback(now);
   drawHud(now);
   drawFloatingTexts(deltaSeconds);
