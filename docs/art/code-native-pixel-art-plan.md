@@ -63,6 +63,8 @@ Current prototype usage:
 - Party characters are drawn from code-defined pixel blocks.
 - Boss is drawn from code-defined pixel blocks.
 - Yellow/red warning attacks are still driven by combat logic.
+- Active character sprites now use a larger code-native pixel structure with face pixels: eyes, eyelids, nose, and mouth.
+- Support sprites use the same structure at a smaller scale so all three characters stay visually consistent.
 
 ## Next Step
 

@@ -568,7 +568,7 @@ function drawParty(now: number) {
     const supportX = supportSlots[index];
 
     gameContext.globalAlpha = 0.65;
-    drawPixelCharacter(gameContext, character, supportX, y, 3, {
+    drawPixelCharacter(gameContext, character, supportX, y, 2.15, {
       active: false,
       beat: getBeatFloat(now) + index * 0.35,
       counter: false,
@@ -578,7 +578,7 @@ function drawParty(now: number) {
     drawText(character.name, supportX, y + 72, 13, '#8a95a8', 'center');
   });
 
-  drawPixelCharacter(gameContext, activeCharacter, x + lean, y, 4, {
+  drawPixelCharacter(gameContext, activeCharacter, x + lean, y, 2.85, {
     active: true,
     beat: getBeatFloat(now),
     counter: isCounter,
