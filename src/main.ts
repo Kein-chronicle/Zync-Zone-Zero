@@ -138,7 +138,10 @@ const levelConfig = {
 };
 const bpm = levelConfig.bpm;
 const beatDuration = 60 / bpm;
-const attackCycleBeats = 16;
+const commandInputBeats = 4;
+const commandActionBeats = 4;
+const commandCycleBeats = commandInputBeats + commandActionBeats;
+const attackCycleBeats = 24;
 const bossMaxHp = 520;
 const zyncMax = 100;
 const zeroFieldDuration = 10;
@@ -146,9 +149,9 @@ const zeroFieldMaxDuration = 14;
 const ultimateCutsceneDuration = 2;
 let songStartTime = performance.now() / 1000;
 const attackPattern: Array<{ move: EnemyMove; guardType: GuardType; windup: number; impact: number }> = [
-  { move: 'slash', guardType: 'parryable', windup: 5, impact: 6 },
-  { move: 'thrust', guardType: 'parryable', windup: 9, impact: 10 },
-  { move: 'slam', guardType: 'unparryable', windup: 13, impact: 14 },
+  { move: 'slash', guardType: 'parryable', windup: 0, impact: 4 },
+  { move: 'thrust', guardType: 'parryable', windup: 8, impact: 12 },
+  { move: 'slam', guardType: 'unparryable', windup: 16, impact: 20 },
 ];
 const characters = pixelCharacters;
 const bgm = new Audio(levelConfig.bgm);
@@ -232,6 +235,7 @@ let bgmStatus: 'STANDBY' | 'STARTING' | 'ON' | 'PAUSED' | 'BLOCKED' = 'STANDBY';
 let commandBuffer: CommandInput[] = [];
 let activePhraseAction: PhraseAction | undefined;
 let lastPhraseName: PhraseName | 'None' = 'None';
+let lastCommandInputOpen = true;
 const bossActor: FieldActor = { attackUntil: 0, nextMoveAt: 0, x: 640, y: 340, targetX: 640, targetY: 340 };
 const characterActors: FieldActor[] = [
   { attackUntil: 0, nextMoveAt: 0, x: 640, y: 585, targetX: 640, targetY: 585 },
@@ -280,6 +284,15 @@ function getSongTime(now = performance.now() / 1000) {
 
 function getBeatFloat(now = performance.now() / 1000) {
   return getSongTime(now) / beatDuration;
+}
+
+function isCommandInputBeat(beat: number) {
+  const cycleBeat = ((Math.floor(beat) % commandCycleBeats) + commandCycleBeats) % commandCycleBeats;
+  return cycleBeat < commandInputBeats;
+}
+
+function isCommandInputOpen(now = performance.now() / 1000) {
+  return isCommandInputBeat(getBeatFloat(now));
 }
 
 function isBossGroggy(now = performance.now() / 1000) {
@@ -1312,7 +1325,8 @@ function resolveCommandPhrase(now: number) {
   commandBuffer = [];
   const phraseName = getPhraseName(phraseInputs);
   const phrasePattern = phraseInputs.map((input) => normalizeCommandToken(input.token)).join(' ');
-  const guidance = getAttackGuidance(getGuidanceAttack(now));
+  const guidanceAttack = getGuidanceAttack(now);
+  const guidance = getAttackGuidance(guidanceAttack);
   const matchesGuidance = !guidance || guidance.command.join(' ') === phrasePattern;
   const misses = countPhraseMisses(phraseInputs);
   const gradePower = Math.max(0.35, getAverageGradeMultiplier(phraseInputs));
@@ -1341,7 +1355,8 @@ function resolveCommandPhrase(now: number) {
   }
 
   const adjustedGradePower = (misses > 0 ? gradePower * 0.5 : gradePower) * (matchesGuidance ? 1 : 0.78);
-  if (guidance && matchesGuidance) {
+  if (guidance && guidanceAttack && matchesGuidance) {
+    guidanceAttack.resolved = true;
     addEffect('tagParryFlash', 640, 420, '#dff6ff', 1.1);
     addFloatingText('ROUTE MATCH', 640, 486, '#dff6ff');
   } else if (guidance) {
@@ -1373,6 +1388,14 @@ function handleAction(action: Action) {
 
   const now = performance.now() / 1000;
   startBgm(now);
+  if (!isCommandInputOpen(now)) {
+    lastAction = 'ACTION PHASE';
+    lastGrade = 'GOOD';
+    addEffect('beatRing', 640, 560, '#8a95a8', 0.48);
+    addFloatingText('ACTION PHASE', 640, 640, '#8a95a8');
+    return;
+  }
+
   const grade = gradeInput(now);
   const multiplier = gradeMultiplier(grade);
   lastGrade = grade;
@@ -1504,6 +1527,7 @@ function resetFight() {
   activeUltimateCutsceneId = undefined;
   activePhraseAction = undefined;
   commandBuffer = [];
+  lastCommandInputOpen = true;
   lastPhraseName = 'None';
   syncSongClockToBgm();
   bossActor.x = 640;
@@ -1683,6 +1707,10 @@ function drawRhythmLane(now: number) {
   const lastBeat = Math.ceil(beatFloat + travelBeats + 1);
 
   for (let targetBeat = firstBeat; targetBeat <= lastBeat; targetBeat += 1) {
+    if (!isCommandInputBeat(targetBeat)) {
+      continue;
+    }
+
     const progress = 1 - (targetBeat - beatFloat) / travelBeats;
 
     if (progress < -0.04 || progress > 1.12) {
@@ -1694,9 +1722,9 @@ function drawRhythmLane(now: number) {
     const nodeRadius = 12 + Math.max(0, 1 - distanceToPerfect * 5) * 5;
     const alpha = passed ? Math.max(0, 1 - (progress - 1) * 6) : 0.62 + Math.max(0, 1 - distanceToPerfect * 3) * 0.32;
     const bossAttackForNote = attacks.find(
-      (attack) => !attack.resolved && targetBeat >= attack.windupBeat && targetBeat < attack.windupBeat + 4,
+      (attack) => !attack.resolved && targetBeat >= attack.impactBeat - commandInputBeats && targetBeat < attack.impactBeat,
     );
-    const guidanceSlot = bossAttackForNote ? targetBeat - bossAttackForNote.windupBeat : -1;
+    const guidanceSlot = bossAttackForNote ? targetBeat - (bossAttackForNote.impactBeat - commandInputBeats) : -1;
     const guidanceKey = getGuidanceKeyForAttackSlot(bossAttackForNote, guidanceSlot);
     const noteColor = guidanceKey ? getKeyColor(guidanceKey) : '#0fb9b1';
     const fillColor = guidanceKey ? noteColor : '#dff6ff';
@@ -2052,10 +2080,11 @@ function drawZeroFieldFeedback(now: number) {
 
 function drawHud(now: number) {
   const beatFloat = getBeatFloat(now);
+  const inputOpen = isCommandInputBeat(beatFloat);
   const inBreak = beatFloat < breakUntilBeat;
   const inZeroField = isZeroFieldActive(now);
   const zeroRemaining = Math.max(0, zeroFieldUntil - now);
-  const result = playerHp <= 0 ? 'FAILED' : bossHp <= 0 ? 'CLEARED' : inZeroField ? 'ZERO FIELD' : inBreak ? 'EXHAUSTED' : 'ACTION ASSAULT';
+  const result = playerHp <= 0 ? 'FAILED' : bossHp <= 0 ? 'CLEARED' : inZeroField ? 'ZERO FIELD' : inBreak ? 'EXHAUSTED' : inputOpen ? 'COMMAND INPUT' : 'ACTION PHASE';
   const activeAttack = getIncomingAttack(now);
   const guidanceAttack = getGuidanceAttack(now);
   const intentAttack = activeAttack ?? guidanceAttack;
@@ -2134,7 +2163,9 @@ function drawHud(now: number) {
     ? 'EXHAUSTED: FREE COMBO'
     : inZeroField
       ? `ZERO FIELD: DAMAGE x1.35 · GROGGY x1.55 · ${zeroUltimateAvailable ? 'ULTIMATE READY' : 'ULTIMATE USED'}`
-      : intentAttack
+      : !inputOpen
+        ? 'ACTION PHASE: WATCH THE 4-BEAT EXECUTION'
+        : intentAttack
       ? intentAttack.guardType === 'parryable'
         ? 'YELLOW: TAG PARRY OR DODGE'
         : 'RED: DODGE ONLY'
@@ -2306,7 +2337,25 @@ function updateFieldMotion(deltaSeconds: number, now: number) {
 }
 
 function update(deltaSeconds: number, now: number) {
-  const beat = Math.floor(getBeatFloat(now));
+  const beatFloat = getBeatFloat(now);
+  const beat = Math.floor(beatFloat);
+  const commandInputOpen = isCommandInputBeat(beatFloat);
+
+  if (commandInputOpen !== lastCommandInputOpen) {
+    if (!commandInputOpen && commandBuffer.length > 0) {
+      commandBuffer = [];
+      combo = 0;
+      sync = clamp(sync - 5, 0, 100);
+      punishComboDrop(now, 0.7);
+      lastPhraseName = 'Broken Phrase';
+      addEffect('warningPulse', 640, 638, '#ff5a6e', 0.9);
+      addFloatingText('INCOMPLETE PHRASE', 640, 638, '#ff5a6e');
+    } else if (commandInputOpen) {
+      commandBuffer = [];
+    }
+    lastCommandInputOpen = commandInputOpen;
+  }
+
   if (queuedUltimatePreviewId && getSongTime(now) > 0.35) {
     triggerUltimateCutscene(queuedUltimatePreviewId, now);
     queuedUltimatePreviewId = undefined;
