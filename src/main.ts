@@ -2,6 +2,12 @@ import './styles.css';
 import { createPixelEffect, drawPixelEffects, type PixelEffect, updatePixelEffects } from './pixelEffects';
 import { drawPixelCityStage } from './pixelEnvironment';
 import { coreBrutePalette, drawPixelBoss, drawPixelCharacter, pixelCharacters } from './pixelSprites';
+import {
+  createSpriteSheetEffect,
+  drawSpriteSheetEffects,
+  type SpriteSheetEffect,
+  updateSpriteSheetEffects,
+} from './spriteSheetEffects';
 import type { CharacterPose } from './spriteSheetSprites';
 
 type Action = 'weak' | 'heavy' | 'dodge' | 'tag' | 'ultimate';
@@ -103,6 +109,7 @@ const attacks: EnemyAttack[] = [];
 const inputHistory: CombatInput[] = [];
 const floatingTexts: FloatingText[] = [];
 const pixelEffects: PixelEffect[] = [];
+const spriteSheetEffects: SpriteSheetEffect[] = [];
 
 function getSongTime(now = performance.now() / 1000) {
   return now - startTime;
@@ -165,6 +172,10 @@ function addFloatingText(text: string, x: number, y: number, color: string) {
 
 function addEffect(type: PixelEffect['type'], x: number, y: number, color: string, intensity = 1) {
   pixelEffects.push(createPixelEffect(type, x, y, color, intensity));
+}
+
+function addSpriteEffect(type: SpriteSheetEffect['type'], x: number, y: number, scale: number, duration: number, alpha = 1) {
+  spriteSheetEffects.push(createSpriteSheetEffect(type, x, y, scale, duration, alpha));
 }
 
 function setActivePose(pose: CharacterPose, now: number, durationSeconds: number) {
@@ -438,6 +449,7 @@ function applyAttack(action: 'weak' | 'heavy', grade: Grade, now: number, chainS
   energy = action === 'weak' ? clamp(energy + 6 * multiplier, 0, 100) : energy;
 
   addEffect(action === 'weak' ? 'slashArc' : 'hitSpark', 640, 265, action === 'weak' ? '#f0f3f7' : '#f5c84c', multiplier);
+  addSpriteEffect(action === 'weak' ? 'slash' : 'projectile', 640, action === 'weak' ? 395 : 365, action === 'weak' ? 0.55 : 0.48, action === 'weak' ? 0.28 : 0.34, 0.9);
   addEffect('beatRing', 1120, 610, grade === 'PERFECT' ? '#f5c84c' : '#0fb9b1', multiplier);
   addFloatingText(comboName || grade, 640, 525, comboName ? '#f5c84c' : '#f0f3f7');
 }
@@ -461,6 +473,8 @@ function applyUltimate(grade: Grade, now: number) {
   score += Math.round(700 * multiplier);
   addEffect('tagParryFlash', 640, 410, activeCharacter.accent, 1.45 * multiplier);
   addEffect('hitSpark', 640, 255, '#f5c84c', 1.6 * multiplier);
+  addSpriteEffect('slash', 640, 360, 0.75, 0.44, 1);
+  addSpriteEffect('projectile', 640, 340, 0.65, 0.5, 0.95);
   addEffect('beatRing', 1120, 610, '#f5c84c', 1.3 * multiplier);
   addFloatingText(`${activeCharacter.name} ULTIMATE`, 640, 500, '#f5c84c');
 }
@@ -583,6 +597,7 @@ function resetFight() {
   inputHistory.length = 0;
   floatingTexts.length = 0;
   pixelEffects.length = 0;
+  spriteSheetEffects.length = 0;
 }
 
 function drawPanel(x: number, y: number, width: number, height: number, accent = '#2c313a', alpha = 0.78) {
@@ -821,6 +836,7 @@ function update(deltaSeconds: number, now: number) {
   resolveEnemyHits(now);
   updateSupportAttacks(now);
   updatePixelEffects(pixelEffects, deltaSeconds);
+  updateSpriteSheetEffects(spriteSheetEffects, deltaSeconds);
 
   if (sync <= 0) {
     playerHp = clamp(playerHp - deltaSeconds * 3, 0, 100);
@@ -843,6 +859,7 @@ function render(nowMs: number) {
   drawBoss(now);
   drawAttackRead(now);
   drawParty(now);
+  drawSpriteSheetEffects(gameContext, spriteSheetEffects);
   drawBeatRing(now);
   drawHud(now);
   drawPixelEffects(gameContext, pixelEffects);
