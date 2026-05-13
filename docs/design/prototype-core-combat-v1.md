@@ -23,7 +23,7 @@ Validate whether a fixed-camera boss confrontation can feel good when combat act
 
 ## Implemented Mechanics
 
-- 120 BPM beat clock.
+- 125 BPM beat clock synced to the prototype K-pop style BGM.
 - Timing grades: Miss, Bad, Good, Perfect.
 - Boss HP, Player HP, Sync, Energy, Groggy, Score, Combo.
 - Enemy attacks are represented by boss action states, not falling notes.
@@ -51,7 +51,7 @@ Validate whether a fixed-camera boss confrontation can feel good when combat act
 
 ## Known Limits
 
-- No audio track yet.
+- Prototype BGM is loaded from `public/assets/audio/sweet-escape-k-pop-125bpm.mp3`.
 - No controller support yet.
 - Boss visuals are placeholder shapes.
 - Threat authoring is hardcoded.

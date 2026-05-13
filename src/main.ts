@@ -103,17 +103,21 @@ if (!canvas || !context) {
 
 const gameCanvas = canvas;
 const gameContext = context;
-const beatDuration = 0.5;
+const bpm = 125;
+const beatDuration = 60 / bpm;
 const attackCycleBeats = 16;
 const zyncMax = 100;
 const zeroFieldDuration = 10;
 const ultimateCutsceneDuration = 2;
-const startTime = performance.now() / 1000;
+let songStartTime = performance.now() / 1000;
 const attackPattern: Array<{ move: EnemyMove; guardType: GuardType; windup: number; impact: number }> = [
   { move: 'slash', guardType: 'parryable', windup: 5, impact: 6 },
   { move: 'slam', guardType: 'unparryable', windup: 12, impact: 13 },
 ];
 const characters = pixelCharacters;
+const bgm = new Audio('/assets/audio/sweet-escape-k-pop-125bpm.mp3');
+bgm.loop = true;
+bgm.volume = 0.52;
 const ultimateCutsceneSources: Record<UltimateCutsceneId, string> = {
   'Z-04': '/assets/cutscenes/z04-ultimate-cutscene-v001.png',
   'Z-05': '/assets/cutscenes/z05-ultimate-cutscene-v001.png',
@@ -217,7 +221,7 @@ const rhythmNotes: RhythmNote[] = [
 ];
 
 function getSongTime(now = performance.now() / 1000) {
-  return now - startTime;
+  return now - songStartTime;
 }
 
 function getBeatFloat(now = performance.now() / 1000) {
@@ -351,6 +355,25 @@ function scheduleMove(actor: FieldActor, now: number, baseX: number, baseY: numb
 
 function addFloatingText(text: string, x: number, y: number, color: string) {
   floatingTexts.push({ text, x, y, color, ttl: 0.85 });
+}
+
+function syncSongClockToBgm(now = performance.now() / 1000) {
+  songStartTime = bgm.paused ? now : now - bgm.currentTime;
+}
+
+function startBgm(now = performance.now() / 1000) {
+  if (!bgm.paused) {
+    syncSongClockToBgm(now);
+    return;
+  }
+
+  bgm.currentTime = 0;
+  songStartTime = now;
+  void bgm.play().then(() => {
+    syncSongClockToBgm();
+  }).catch(() => {
+    songStartTime = performance.now() / 1000;
+  });
 }
 
 function isUltimateCutsceneId(name: string): name is UltimateCutsceneId {
@@ -792,6 +815,7 @@ function handleAction(action: Action) {
   }
 
   const now = performance.now() / 1000;
+  startBgm(now);
   const grade = gradeInput(now);
   const multiplier = gradeMultiplier(grade);
   lastGrade = grade;
@@ -914,6 +938,7 @@ function resetFight() {
   ultimateCutsceneUntil = 0;
   ultimateCutsceneStartedAt = 0;
   activeUltimateCutsceneId = undefined;
+  syncSongClockToBgm();
   bossActor.x = 640;
   bossActor.y = 340;
   bossActor.attackUntil = 0;
@@ -1245,7 +1270,7 @@ function drawBeatRing(now: number) {
   gameContext.arc(1120, 610, 12, 0, Math.PI * 2);
   gameContext.fill();
 
-  drawText('120 BPM', 1120, 675, 15, '#8a95a8', 'center');
+  drawText(`${bpm} BPM`, 1120, 675, 15, '#8a95a8', 'center');
 }
 
 function drawFloatingTexts(deltaSeconds: number) {
@@ -1585,7 +1610,7 @@ function updateFieldMotion(deltaSeconds: number, now: number) {
 
 function update(deltaSeconds: number, now: number) {
   const beat = Math.floor(getBeatFloat(now));
-  if (queuedUltimatePreviewId && now - startTime > 0.35) {
+  if (queuedUltimatePreviewId && getSongTime(now) > 0.35) {
     triggerUltimateCutscene(queuedUltimatePreviewId, now);
     queuedUltimatePreviewId = undefined;
   }

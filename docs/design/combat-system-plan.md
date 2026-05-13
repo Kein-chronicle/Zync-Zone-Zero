@@ -46,7 +46,7 @@ Zync Zone Zero will use a fixed-camera boss confrontation format:
 
 Build a single fight sandbox:
 
-- 120 BPM test track or metronome.
+- 125 BPM prototype BGM or metronome.
 - Boss idle plus two attack phrases.
 - Beat judgment windows.
 - Score and grade feedback.
@@ -58,4 +58,3 @@ Build a single fight sandbox:
 - Fixed camera can reduce depth if boss telegraphs are not expressive.
 - Too many meters will bury the rhythm read.
 - Perfect-only play can become exhausting; Good timing must still be viable.
-
