@@ -2106,7 +2106,7 @@ function drawHud(now: number) {
   const bufferWidth = 92;
   const bufferGap = 14;
   const bufferX = (gameCanvas.width - bufferWidth * 4 - bufferGap * 3) / 2;
-  const bufferY = 592;
+  const bufferY = 638;
   for (let index = 0; index < 4; index += 1) {
     const entry = commandBuffer[index];
     const x = bufferX + index * (bufferWidth + bufferGap);
@@ -2122,7 +2122,7 @@ function drawHud(now: number) {
   drawText(
     activePhraseAction ? `EXECUTING ${activePhraseAction.name.toUpperCase()}` : `PHRASE ${lastPhraseName.toUpperCase()}`,
     640,
-    582,
+    630,
     13,
     activePhraseAction ? activePhraseAction.color : '#8a95a8',
     'center',
@@ -2137,7 +2137,7 @@ function drawHud(now: number) {
         ? 'YELLOW: TAG PARRY OR DODGE'
         : 'RED: DODGE ONLY'
       : 'NEUTRAL: BUILD RHYTHM PRESSURE';
-  drawText(banner, 640, 660, 14, warningColor, 'center');
+  drawText(banner, 640, 694, 14, warningColor, 'center');
 }
 
 function updatePhraseAction(now: number) {
