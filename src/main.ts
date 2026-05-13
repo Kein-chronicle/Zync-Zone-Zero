@@ -393,8 +393,8 @@ function getKeyColor(key: string) {
   return '#8a95a8';
 }
 
-function getGuidanceKeyForSlot(slot: number, now = performance.now() / 1000) {
-  const guidance = getAttackGuidance(getGuidanceAttack(now));
+function getGuidanceKeyForAttackSlot(attack: EnemyAttack | undefined, slot: number) {
+  const guidance = getAttackGuidance(attack);
 
   if (!guidance || slot < 0 || slot >= guidance.keys.length) {
     return undefined;
@@ -1681,7 +1681,6 @@ function drawRhythmLane(now: number) {
 
   const firstBeat = Math.floor(beatFloat) - 1;
   const lastBeat = Math.ceil(beatFloat + travelBeats + 1);
-  const currentBeat = Math.floor(beatFloat);
 
   for (let targetBeat = firstBeat; targetBeat <= lastBeat; targetBeat += 1) {
     const progress = 1 - (targetBeat - beatFloat) / travelBeats;
@@ -1694,8 +1693,11 @@ function drawRhythmLane(now: number) {
     const distanceToPerfect = Math.abs(progress - 1);
     const nodeRadius = 12 + Math.max(0, 1 - distanceToPerfect * 5) * 5;
     const alpha = passed ? Math.max(0, 1 - (progress - 1) * 6) : 0.62 + Math.max(0, 1 - distanceToPerfect * 3) * 0.32;
-    const guidanceSlot = targetBeat - currentBeat + commandBuffer.length;
-    const guidanceKey = getGuidanceKeyForSlot(guidanceSlot, now);
+    const bossAttackForNote = attacks.find(
+      (attack) => !attack.resolved && targetBeat >= attack.windupBeat && targetBeat < attack.windupBeat + 4,
+    );
+    const guidanceSlot = bossAttackForNote ? targetBeat - bossAttackForNote.windupBeat : -1;
+    const guidanceKey = getGuidanceKeyForAttackSlot(bossAttackForNote, guidanceSlot);
     const noteColor = guidanceKey ? getKeyColor(guidanceKey) : '#0fb9b1';
     const fillColor = guidanceKey ? noteColor : '#dff6ff';
 
