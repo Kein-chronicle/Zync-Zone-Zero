@@ -27,19 +27,72 @@ body {
 .combat-shell {
   display: grid;
   min-height: 100vh;
-  grid-template-rows: 1fr auto;
+  grid-template-rows: 1fr auto auto;
   gap: 12px;
   padding: 16px;
 }
 
 #game {
   width: 100%;
-  max-height: calc(100vh - 92px);
+  max-height: calc(100vh - 148px);
   aspect-ratio: 16 / 9;
   align-self: center;
   justify-self: center;
   border: 1px solid #2c313a;
   background: #101114;
+}
+
+.command-legend {
+  display: grid;
+  width: min(1080px, 100%);
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+  justify-self: center;
+}
+
+.command-legend div {
+  display: flex;
+  min-height: 34px;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  border: 1px solid #2c313a;
+  background: #121720;
+  color: #8a95a8;
+  font-size: 12px;
+}
+
+.command-legend b {
+  min-width: 42px;
+  color: #f0f3f7;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.command-legend span {
+  min-width: 24px;
+  padding: 2px 5px;
+  border: 1px solid currentColor;
+  background: #101114;
+  text-align: center;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.command-legend span[data-key="weak"] {
+  color: #0fb9b1;
+}
+
+.command-legend span[data-key="heavy"] {
+  color: #f5c84c;
+}
+
+.command-legend span[data-key="dodge"] {
+  color: #5aa7ff;
+}
+
+.command-legend span[data-key="tag"] {
+  color: #ff5aee;
 }
 
 .input-strip {
@@ -86,5 +139,9 @@ body {
 
   .input-strip {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .command-legend {
+    grid-template-columns: repeat(1, minmax(0, 1fr));
   }
 }

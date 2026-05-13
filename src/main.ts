@@ -102,6 +102,13 @@ if (!app) {
 app.innerHTML = `
   <main class="combat-shell">
     <canvas id="game" width="1280" height="720" aria-label="Zync Zone Zero action combat prototype"></canvas>
+    <div class="command-legend" aria-label="command combinations">
+      <div><b>Rush</b><span data-key="tag">Z/X</span><span data-key="weak">J</span><span data-key="weak">J</span><span data-key="heavy">K</span></div>
+      <div><b>Break</b><span data-key="weak">J</span><span data-key="tag">Z/X</span><span data-key="heavy">K</span><span data-key="heavy">K</span></div>
+      <div><b>Evade</b><span data-key="dodge">L</span><span data-key="tag">Z/X</span><span data-key="weak">J</span><span data-key="heavy">K</span></div>
+      <div><b>Cross</b><span data-key="tag">Z/X</span><span data-key="weak">J</span><span data-key="tag">Z/X</span><span data-key="heavy">K</span></div>
+      <div><b>Ult</b><span data-key="weak">J</span><span data-key="heavy">K</span><span data-key="tag">Z/X</span><span data-key="heavy">K</span></div>
+    </div>
     <div class="input-strip" aria-label="combat controls">
       <button data-action="weak"><span>J</span>Weak</button>
       <button data-action="heavy"><span>K</span>Heavy</button>
@@ -1633,9 +1640,10 @@ function drawRhythmAtmosphere(now: number) {
 
 function drawRhythmLane(now: number) {
   const beatFloat = getBeatFloat(now);
-  const laneStartX = 236;
-  const laneEndX = 1120;
-  const laneY = 610;
+  const laneLeftX = 150;
+  const laneRightX = 1130;
+  const laneCenterX = 640;
+  const laneY = 560;
   const travelBeats = 4;
   const phase = beatFloat - Math.floor(beatFloat);
   const pulse = Math.pow(1 - phase, 2.4);
@@ -1645,23 +1653,30 @@ function drawRhythmLane(now: number) {
   gameContext.strokeStyle = '#1b5662';
   gameContext.lineWidth = 3;
   gameContext.beginPath();
-  gameContext.moveTo(laneStartX, laneY);
-  gameContext.lineTo(laneEndX, laneY);
+  gameContext.moveTo(laneLeftX, laneY);
+  gameContext.lineTo(laneCenterX - 36, laneY);
+  gameContext.moveTo(laneCenterX + 36, laneY);
+  gameContext.lineTo(laneRightX, laneY);
   gameContext.stroke();
 
   gameContext.globalAlpha = 0.22 + pulse * 0.24;
   gameContext.strokeStyle = '#0fb9b1';
   gameContext.lineWidth = 8;
   gameContext.beginPath();
-  gameContext.moveTo(laneStartX, laneY);
-  gameContext.lineTo(laneEndX, laneY);
+  gameContext.moveTo(laneLeftX, laneY);
+  gameContext.lineTo(laneCenterX - 36, laneY);
+  gameContext.moveTo(laneCenterX + 36, laneY);
+  gameContext.lineTo(laneRightX, laneY);
   gameContext.stroke();
 
-  for (let index = 0; index < 12; index += 1) {
-    const tickX = laneStartX + index * ((laneEndX - laneStartX) / 11);
-    gameContext.globalAlpha = index === 11 ? 0.7 : 0.22;
-    gameContext.fillStyle = index === 11 ? '#dff6ff' : '#0fb9b1';
-    gameContext.fillRect(Math.round(tickX - 2), laneY - 8, 4, 16);
+  for (let index = 0; index < 6; index += 1) {
+    const t = index / 5;
+    const leftTickX = laneLeftX + (laneCenterX - 36 - laneLeftX) * t;
+    const rightTickX = laneRightX - (laneRightX - laneCenterX - 36) * t;
+    gameContext.globalAlpha = index === 5 ? 0.7 : 0.22;
+    gameContext.fillStyle = index === 5 ? '#dff6ff' : '#0fb9b1';
+    gameContext.fillRect(Math.round(leftTickX - 2), laneY - 8, 4, 16);
+    gameContext.fillRect(Math.round(rightTickX - 2), laneY - 8, 4, 16);
   }
 
   const firstBeat = Math.floor(beatFloat) - 1;
@@ -1675,7 +1690,6 @@ function drawRhythmLane(now: number) {
       continue;
     }
 
-    const x = laneStartX + (laneEndX - laneStartX) * progress;
     const passed = progress > 1;
     const distanceToPerfect = Math.abs(progress - 1);
     const nodeRadius = 12 + Math.max(0, 1 - distanceToPerfect * 5) * 5;
@@ -1685,35 +1699,41 @@ function drawRhythmLane(now: number) {
     const noteColor = guidanceKey ? getKeyColor(guidanceKey) : '#0fb9b1';
     const fillColor = guidanceKey ? noteColor : '#dff6ff';
 
-    gameContext.globalAlpha = alpha;
-    gameContext.shadowColor = noteColor;
-    gameContext.shadowBlur = 10 + Math.max(0, 1 - distanceToPerfect * 4) * 18;
-    gameContext.fillStyle = fillColor;
-    gameContext.beginPath();
-    gameContext.arc(x, laneY, nodeRadius, 0, Math.PI * 2);
-    gameContext.fill();
-    gameContext.strokeStyle = noteColor;
-    gameContext.lineWidth = 3;
-    gameContext.stroke();
-    gameContext.shadowBlur = 0;
+    const drawLaneNode = (x: number) => {
+      gameContext.globalAlpha = alpha;
+      gameContext.shadowColor = noteColor;
+      gameContext.shadowBlur = 10 + Math.max(0, 1 - distanceToPerfect * 4) * 18;
+      gameContext.fillStyle = fillColor;
+      gameContext.beginPath();
+      gameContext.arc(x, laneY, nodeRadius, 0, Math.PI * 2);
+      gameContext.fill();
+      gameContext.strokeStyle = noteColor;
+      gameContext.lineWidth = 3;
+      gameContext.stroke();
+      gameContext.shadowBlur = 0;
 
-    gameContext.globalAlpha = alpha * 0.48;
-    gameContext.fillStyle = guidanceKey ? '#101114' : '#0fb9b1';
-    gameContext.beginPath();
-    gameContext.arc(x, laneY, Math.max(4, nodeRadius * 0.35), 0, Math.PI * 2);
-    gameContext.fill();
+      gameContext.globalAlpha = alpha * 0.48;
+      gameContext.fillStyle = guidanceKey ? '#101114' : '#0fb9b1';
+      gameContext.beginPath();
+      gameContext.arc(x, laneY, Math.max(4, nodeRadius * 0.35), 0, Math.PI * 2);
+      gameContext.fill();
 
-    if (guidanceKey && progress > 0.72 && progress < 1.08) {
-      drawText(guidanceKey, x, laneY - 28, 13, noteColor, 'center');
-    }
+      if (guidanceKey && progress > 0.72 && progress < 1.08) {
+        drawText(guidanceKey, x, laneY - 28, 13, noteColor, 'center');
+      }
+    };
+
+    drawLaneNode(laneLeftX + (laneCenterX - laneLeftX) * progress);
+    drawLaneNode(laneRightX - (laneRightX - laneCenterX) * progress);
   }
 
   gameContext.globalAlpha = 0.38 + pulse * 0.34;
   gameContext.strokeStyle = '#dff6ff';
   gameContext.lineWidth = 3 + pulse * 2;
   gameContext.beginPath();
-  gameContext.arc(laneEndX, laneY, 26 + pulse * 5, 0, Math.PI * 2);
+  gameContext.arc(laneCenterX, laneY, 30 + pulse * 6, 0, Math.PI * 2);
   gameContext.stroke();
+  drawText('PERFECT', laneCenterX, laneY + 45, 11, '#8a95a8', 'center');
 
   gameContext.globalAlpha = 1;
   gameContext.restore();
@@ -2027,26 +2047,6 @@ function drawZeroFieldFeedback(now: number) {
   gameContext.restore();
 }
 
-function drawKeyChip(key: string, x: number, y: number, width = key.length > 1 ? 36 : 28, height = 18) {
-  const color = getKeyColor(key);
-  gameContext.fillStyle = '#111722';
-  gameContext.fillRect(x, y, width, height);
-  gameContext.strokeStyle = color;
-  gameContext.lineWidth = 2;
-  gameContext.strokeRect(x, y, width, height);
-  drawText(key, x + width / 2, y + 14, 10, color, 'center');
-}
-
-function drawCommandCase(label: string, keys: string[], x: number, y: number) {
-  drawText(`${label} -`, x, y + 14, 10, '#8a95a8');
-  let cursorX = x + 62;
-  keys.forEach((key) => {
-    const width = key.length > 1 ? 36 : 28;
-    drawKeyChip(key, cursorX, y, width, 18);
-    cursorX += width + 5;
-  });
-}
-
 function drawHud(now: number) {
   const beatFloat = getBeatFloat(now);
   const inBreak = beatFloat < breakUntilBeat;
@@ -2123,7 +2123,7 @@ function drawHud(now: number) {
   });
 
   const bufferX = 472;
-  const bufferY = 548;
+  const bufferY = 590;
   for (let index = 0; index < 4; index += 1) {
     const entry = commandBuffer[index];
     const x = bufferX + index * 86;
@@ -2139,22 +2139,11 @@ function drawHud(now: number) {
   drawText(
     activePhraseAction ? `EXECUTING ${activePhraseAction.name.toUpperCase()}` : `PHRASE ${lastPhraseName.toUpperCase()}`,
     640,
-    538,
+    582,
     13,
     activePhraseAction ? activePhraseAction.color : '#8a95a8',
     'center',
   );
-  const guidance = getAttackGuidance(guidanceAttack);
-  if (guidance) {
-    drawCommandCase('NEXT', guidance.keys, 470, 584);
-    drawText(guidance.label, 740, 598, 11, warningColor);
-  } else {
-    drawCommandCase('RUSH', ['Z/X', 'J', 'J', 'K'], 286, 578);
-    drawCommandCase('BREAK', ['J', 'Z/X', 'K', 'K'], 510, 578);
-    drawCommandCase('EVADE', ['L', 'Z/X', 'J', 'K'], 746, 578);
-    drawCommandCase('CROSS', ['Z/X', 'J', 'Z/X', 'K'], 398, 604);
-    drawCommandCase('ULT', ['J', 'K', 'Z/X', 'K'], 654, 604);
-  }
 
   const banner = inBreak
     ? 'EXHAUSTED: FREE COMBO'
