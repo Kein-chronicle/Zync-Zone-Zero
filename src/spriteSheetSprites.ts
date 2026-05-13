@@ -12,7 +12,7 @@ export type CharacterPose =
   | 'weak2'
   | 'weak3';
 
-export type SpriteSheetCharacterId = 'Z-02' | 'Z-03' | 'Z-04';
+export type SpriteSheetCharacterId = 'Z-02' | 'Z-03' | 'Z-05';
 
 interface SpriteFrameMeta {
   column: number;
@@ -29,37 +29,37 @@ const z02Sheet = new Image();
 z02Sheet.src = '/assets/sprites/characters/z02/sheets/z02-combat-core-v1.png';
 const z03Sheet = new Image();
 z03Sheet.src = '/assets/sprites/characters/z03/sheets/z03-combat-core-v1.png';
-const z04Sheet = new Image();
-z04Sheet.src = '/assets/sprites/characters/z04/sheets/z04-combat-core-v1.png';
+const z05Sheet = new Image();
+z05Sheet.src = '/assets/sprites/characters/z05/sheets/z05-combat-core-v1.png';
 const z02WalkSheet = new Image();
 z02WalkSheet.src = '/assets/sprites/characters/z02/sheets/z02-walk-north-v1.png';
 const z03WalkSheet = new Image();
 z03WalkSheet.src = '/assets/sprites/characters/z03/sheets/z03-walk-north-v1.png';
-const z04WalkSheet = new Image();
-z04WalkSheet.src = '/assets/sprites/characters/z04/sheets/z04-walk-north-v1.png';
+const z05WalkSheet = new Image();
+z05WalkSheet.src = '/assets/sprites/characters/z05/sheets/z05-walk-north-v1.png';
 
 const characterSheets: Record<SpriteSheetCharacterId, HTMLImageElement> = {
   'Z-02': z02Sheet,
   'Z-03': z03Sheet,
-  'Z-04': z04Sheet,
+  'Z-05': z05Sheet,
 };
 
 const walkSheets: Record<SpriteSheetCharacterId, HTMLImageElement> = {
   'Z-02': z02WalkSheet,
   'Z-03': z03WalkSheet,
-  'Z-04': z04WalkSheet,
+  'Z-05': z05WalkSheet,
 };
 
 const fallbackColors: Record<SpriteSheetCharacterId, string> = {
   'Z-02': '#f5c84c',
   'Z-03': '#0fb9b1',
-  'Z-04': '#dff6ff',
+  'Z-05': '#dff6ff',
 };
 
 const sourceInsets: Record<SpriteSheetCharacterId, number> = {
   'Z-02': 4,
   'Z-03': 16,
-  'Z-04': 4,
+  'Z-05': 4,
 };
 
 function frame(id: string, column: number, row: number): SpriteFrameMeta {
@@ -148,6 +148,69 @@ function selectCombatFrame(pose: CharacterPose, beat: number, active: boolean) {
   return Math.floor(beat * 2) % 2 === 0 ? combatFrames.idleA : combatFrames.idleB;
 }
 
+function drawSpiritSword(ctx: CanvasRenderingContext2D, x: number, y: number, length: number, angle: number, alpha: number) {
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(angle);
+  ctx.globalAlpha = alpha;
+  ctx.strokeStyle = '#dff6ff';
+  ctx.lineWidth = Math.max(2, Math.round(length * 0.045));
+  ctx.beginPath();
+  ctx.moveTo(0, -length * 0.48);
+  ctx.lineTo(0, length * 0.34);
+  ctx.stroke();
+  ctx.strokeStyle = '#6eefff';
+  ctx.lineWidth = Math.max(1, Math.round(length * 0.025));
+  ctx.beginPath();
+  ctx.moveTo(-length * 0.16, length * 0.08);
+  ctx.lineTo(length * 0.16, length * 0.08);
+  ctx.stroke();
+  ctx.globalAlpha = alpha * 0.45;
+  ctx.strokeStyle = '#6eefff';
+  ctx.beginPath();
+  ctx.arc(0, 0, length * 0.28, -0.7, 0.9);
+  ctx.stroke();
+  ctx.restore();
+}
+
+function drawZ05Overlay(ctx: CanvasRenderingContext2D, x: number, y: number, scale: number, beat: number) {
+  const drift = Math.sin(beat * Math.PI * 2) * scale * 2;
+  const headY = y - 43 * scale;
+  const earHeight = 9 * scale;
+  const earWidth = 7 * scale;
+
+  ctx.save();
+  ctx.imageSmoothingEnabled = false;
+  ctx.fillStyle = '#dff6ff';
+  ctx.strokeStyle = '#6eefff';
+  ctx.lineWidth = Math.max(1, Math.round(scale));
+
+  ctx.beginPath();
+  ctx.moveTo(x - 17 * scale, headY - earHeight);
+  ctx.lineTo(x - 25 * scale, headY + 1 * scale);
+  ctx.lineTo(x - 10 * scale, headY + 2 * scale);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.beginPath();
+  ctx.moveTo(x + 15 * scale, headY - earHeight * 0.9);
+  ctx.lineTo(x + 8 * scale, headY + 2 * scale);
+  ctx.lineTo(x + 24 * scale, headY + 1 * scale);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.fillStyle = '#101923';
+  ctx.fillRect(Math.round(x - 18 * scale), Math.round(headY - earHeight * 0.35), Math.round(earWidth * 0.45), Math.round(earHeight * 0.38));
+  ctx.fillRect(Math.round(x + 15 * scale), Math.round(headY - earHeight * 0.3), Math.round(earWidth * 0.45), Math.round(earHeight * 0.34));
+
+  drawSpiritSword(ctx, x - 48 * scale, y - 40 * scale + drift, 28 * scale, -0.38, 0.82);
+  drawSpiritSword(ctx, x + 48 * scale, y - 52 * scale - drift, 30 * scale, 0.34, 0.72);
+  drawSpiritSword(ctx, x + 8 * scale + drift, y - 88 * scale, 22 * scale, 0.06, 0.48);
+  ctx.restore();
+}
+
 export function drawSpriteSheetCharacter(
   characterId: SpriteSheetCharacterId,
   ctx: CanvasRenderingContext2D,
@@ -196,4 +259,8 @@ export function drawSpriteSheetCharacter(
     Math.round(height),
   );
   ctx.restore();
+
+  if (characterId === 'Z-05') {
+    drawZ05Overlay(ctx, x, y, scale, options.beat);
+  }
 }

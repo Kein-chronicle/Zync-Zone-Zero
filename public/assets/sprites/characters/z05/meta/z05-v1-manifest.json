@@ -1,0 +1,21 @@
+{
+  "id": "z05-combat-core-v1",
+  "kind": "character",
+  "sourcePromptVersion": "samurai-cat-sword-spirit@2026-05-13",
+  "sourceImage": "docs/art/generated/z05-combat-core-v1-source.png",
+  "runtimeImage": "public/assets/sprites/characters/z05/sheets/z05-combat-core-v1.png",
+  "walkImage": "public/assets/sprites/characters/z05/sheets/z05-walk-north-v1.png",
+  "columns": 4,
+  "rows": 4,
+  "sourceInset": 4,
+  "approved": false,
+  "conceptNotes": [
+    "Original samurai cat-eared frost katana heroine.",
+    "Runtime overlay adds cat ears and floating sword spirits so the in-game silhouette reads differently from Z-01/Z-04.",
+    "Visual direction: restrained black-white samurai outfit, pale spirit blades, icy slash feedback."
+  ],
+  "issues": [
+    "prototype sheet is still derived from the Z-01 pose sheet for fast gameplay validation",
+    "needs a dedicated full-body Z-05 concept sheet and pose regeneration pass if this direction is approved"
+  ]
+}
