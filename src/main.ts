@@ -30,7 +30,6 @@ interface FloatingText {
 interface Character {
   name: string;
   color: string;
-  x: number;
 }
 
 const app = document.querySelector<HTMLDivElement>('#app');
@@ -68,9 +67,9 @@ const attackPattern: Array<{ move: EnemyMove; guardType: GuardType; windup: numb
   { move: 'slam', guardType: 'unparryable', windup: 12, impact: 13 },
 ];
 const characters: Character[] = [
-  { name: 'Z-01', color: '#f0f3f7', x: 640 },
-  { name: 'Z-02', color: '#f5c84c', x: 500 },
-  { name: 'Z-03', color: '#0fb9b1', x: 780 },
+  { name: 'Z-01', color: '#f0f3f7' },
+  { name: 'Z-02', color: '#f5c84c' },
+  { name: 'Z-03', color: '#0fb9b1' },
 ];
 const keys: Record<string, Action> = {
   j: 'weak',
@@ -554,32 +553,32 @@ function drawParty(now: number) {
   const isCounter = now <= counterUntil;
   const lean = isEvading ? -34 : 0;
   const activeCharacter = characters[activeCharacterIndex];
+  const supportSlots = [500, 780];
+  const supportCharacters = characters.filter((_, index) => index !== activeCharacterIndex);
 
-  characters.forEach((character, index) => {
-    if (index === activeCharacterIndex) {
-      return;
-    }
-
+  supportCharacters.forEach((character, index) => {
     const supportPulse = 1 + Math.sin((getBeatFloat(now) + index * 0.35) * Math.PI * 2) * 0.08;
+    const supportX = supportSlots[index];
+
     gameContext.globalAlpha = 0.65;
     gameContext.fillStyle = character.color;
     gameContext.beginPath();
-    gameContext.arc(character.x, y - 52 - supportPulse * 6, 18, 0, Math.PI * 2);
+    gameContext.arc(supportX, y - 52 - supportPulse * 6, 18, 0, Math.PI * 2);
     gameContext.fill();
 
     gameContext.fillStyle = '#252b34';
     gameContext.beginPath();
-    gameContext.roundRect(character.x - 26, y - 25, 52, 74, 16);
+    gameContext.roundRect(supportX - 26, y - 25, 52, 74, 16);
     gameContext.fill();
 
     gameContext.strokeStyle = character.color;
     gameContext.lineWidth = 4;
     gameContext.beginPath();
-    gameContext.moveTo(character.x - 54, y + 12);
-    gameContext.lineTo(character.x + 54, y - 8);
+    gameContext.moveTo(supportX - 54, y + 12);
+    gameContext.lineTo(supportX + 54, y - 8);
     gameContext.stroke();
     gameContext.globalAlpha = 1;
-    drawText(character.name, character.x, y + 72, 13, '#8a95a8', 'center');
+    drawText(character.name, supportX, y + 72, 13, '#8a95a8', 'center');
   });
 
   gameContext.fillStyle = isCounter ? activeCharacter.color : '#f0f3f7';
