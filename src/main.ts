@@ -741,6 +741,7 @@ function handleAction(action: Action) {
       energy = clamp(energy + 16 * multiplier, 0, 100);
       score += Math.round(280 * multiplier);
       addEffect('tagParryFlash', 640, 465, nextCharacter.accent, multiplier);
+      addSpriteEffect('parryPing', 640, 465, 0.72, 0.34, 1);
       addEffect('pixelBurst', 640, 300, '#f5c84c', multiplier);
       addFloatingText(`${nextCharacter.name} TAG PARRY`, 640, 465, nextCharacter.accent);
     } else if (findUnparryableTarget(now)) {
@@ -1345,9 +1346,10 @@ function render(nowMs: number) {
   drawRhythmAtmosphere(now);
   drawBoss(now);
   drawAttackRead(now);
-  drawSpriteSheetEffects(gameContext, spriteSheetEffects);
+  drawSpriteSheetEffects(gameContext, spriteSheetEffects, { excludeType: 'parryPing' });
   drawPixelEffects(gameContext, pixelEffects);
   drawParty(now);
+  drawSpriteSheetEffects(gameContext, spriteSheetEffects, { onlyType: 'parryPing' });
   drawRhythmLane(now);
   drawBeatRing(now);
   drawHud(now);

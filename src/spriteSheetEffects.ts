@@ -1,4 +1,4 @@
-export type SpriteSheetEffectType = 'impactGold' | 'kineticTeal' | 'projectile' | 'slash';
+export type SpriteSheetEffectType = 'impactGold' | 'kineticTeal' | 'parryPing' | 'projectile' | 'slash';
 
 export interface SpriteSheetEffect {
   type: SpriteSheetEffectType;
@@ -22,6 +22,9 @@ impactGoldSheet.src = '/assets/sprites/effects/impact/z02-impact-effect-v1.png';
 const kineticTealSheet = new Image();
 kineticTealSheet.src = '/assets/sprites/effects/kinetic/z03-kinetic-effect-v1.png';
 
+const parryPingSheet = new Image();
+parryPingSheet.src = '/assets/sprites/effects/parry/parry-ping-effect-v1.png';
+
 function getSheet(type: SpriteSheetEffectType) {
   if (type === 'slash') {
     return slashSheet;
@@ -33,6 +36,10 @@ function getSheet(type: SpriteSheetEffectType) {
 
   if (type === 'kineticTeal') {
     return kineticTealSheet;
+  }
+
+  if (type === 'parryPing') {
+    return parryPingSheet;
   }
 
   return projectileSheet;
@@ -71,8 +78,23 @@ function clamp(value: number, min: number, max: number) {
   return Math.max(min, Math.min(max, value));
 }
 
-export function drawSpriteSheetEffects(ctx: CanvasRenderingContext2D, effects: SpriteSheetEffect[]) {
+export function drawSpriteSheetEffects(
+  ctx: CanvasRenderingContext2D,
+  effects: SpriteSheetEffect[],
+  options: {
+    excludeType?: SpriteSheetEffectType;
+    onlyType?: SpriteSheetEffectType;
+  } = {},
+) {
   effects.forEach((effect) => {
+    if (options.onlyType && effect.type !== options.onlyType) {
+      return;
+    }
+
+    if (options.excludeType && effect.type === options.excludeType) {
+      return;
+    }
+
     const sheet = getSheet(effect.type);
 
     if (!sheet.complete || sheet.naturalWidth === 0) {
