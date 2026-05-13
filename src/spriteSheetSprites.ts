@@ -11,6 +11,8 @@ export type CharacterPose =
   | 'weak2'
   | 'weak3';
 
+export type SpriteSheetCharacterId = 'Z-01' | 'Z-02';
+
 interface SpriteFrameMeta {
   column: number;
   id: string;
@@ -24,6 +26,18 @@ interface SpriteFrameMeta {
 const cellSize = 512;
 const z01Sheet = new Image();
 z01Sheet.src = '/assets/sprites/characters/z01/sheets/z01-combat-core-v3.png';
+const z02Sheet = new Image();
+z02Sheet.src = '/assets/sprites/characters/z02/sheets/z02-combat-core-v1.png';
+
+const characterSheets: Record<SpriteSheetCharacterId, HTMLImageElement> = {
+  'Z-01': z01Sheet,
+  'Z-02': z02Sheet,
+};
+
+const fallbackColors: Record<SpriteSheetCharacterId, string> = {
+  'Z-01': '#72e9ff',
+  'Z-02': '#f5c84c',
+};
 
 function frame(id: string, column: number, row: number): SpriteFrameMeta {
   return {
@@ -37,7 +51,7 @@ function frame(id: string, column: number, row: number): SpriteFrameMeta {
   };
 }
 
-const z01Frames = {
+const combatFrames = {
   dodgeActive: frame('z01_dodge_active', 2, 2),
   dodgeRecover: frame('z01_dodge_recover', 3, 2),
   heavyImpact: frame('z01_heavy_impact', 1, 2),
@@ -54,57 +68,58 @@ const z01Frames = {
   weak3Startup: frame('z01_weak3_startup', 2, 1),
 };
 
-function selectZ01Frame(pose: CharacterPose, beat: number, active: boolean) {
+function selectCombatFrame(pose: CharacterPose, beat: number, active: boolean) {
   if (!active) {
-    return Math.floor(beat * 2) % 2 === 0 ? z01Frames.idleA : z01Frames.idleB;
+    return Math.floor(beat * 2) % 2 === 0 ? combatFrames.idleA : combatFrames.idleB;
   }
 
   const pulse = Math.floor(beat * 6) % 2;
 
   if (pose === 'weak1') {
-    return pulse === 0 ? z01Frames.weak1Startup : z01Frames.weak1Impact;
+    return pulse === 0 ? combatFrames.weak1Startup : combatFrames.weak1Impact;
   }
 
   if (pose === 'weak2') {
-    return pulse === 0 ? z01Frames.weak2Startup : z01Frames.weak2Impact;
+    return pulse === 0 ? combatFrames.weak2Startup : combatFrames.weak2Impact;
   }
 
   if (pose === 'weak3') {
-    return pulse === 0 ? z01Frames.weak3Startup : z01Frames.weak3Impact;
+    return pulse === 0 ? combatFrames.weak3Startup : combatFrames.weak3Impact;
   }
 
   if (pose === 'heavy1') {
-    return pulse === 0 ? z01Frames.heavyStartup : z01Frames.heavyImpact;
+    return pulse === 0 ? combatFrames.heavyStartup : combatFrames.heavyImpact;
   }
 
   if (pose === 'heavy2') {
-    return pulse === 0 ? z01Frames.weak2Startup : z01Frames.heavyImpact;
+    return pulse === 0 ? combatFrames.weak2Startup : combatFrames.heavyImpact;
   }
 
   if (pose === 'heavy3') {
-    return pulse === 0 ? z01Frames.weak3Startup : z01Frames.heavyImpact;
+    return pulse === 0 ? combatFrames.weak3Startup : combatFrames.heavyImpact;
   }
 
   if (pose === 'dodge') {
-    return pulse === 0 ? z01Frames.dodgeActive : z01Frames.dodgeRecover;
+    return pulse === 0 ? combatFrames.dodgeActive : combatFrames.dodgeRecover;
   }
 
   if (pose === 'tagParry') {
-    return pulse === 0 ? z01Frames.tagReady : z01Frames.tagImpact;
+    return pulse === 0 ? combatFrames.tagReady : combatFrames.tagImpact;
   }
 
   if (pose === 'counter') {
-    return pulse === 0 ? z01Frames.weak3Startup : z01Frames.weak3Impact;
+    return pulse === 0 ? combatFrames.weak3Startup : combatFrames.weak3Impact;
   }
 
   if (pose === 'ultimate') {
-    return pulse === 0 ? z01Frames.tagReady : z01Frames.tagImpact;
+    return pulse === 0 ? combatFrames.tagReady : combatFrames.tagImpact;
   }
 
-  return Math.floor(beat * 2) % 2 === 0 ? z01Frames.idleA : z01Frames.idleB;
+  return Math.floor(beat * 2) % 2 === 0 ? combatFrames.idleA : combatFrames.idleB;
 }
 
-export function drawZ01SpriteSheetCharacter(
+export function drawSpriteSheetCharacter(
+  characterId: SpriteSheetCharacterId,
   ctx: CanvasRenderingContext2D,
   x: number,
   y: number,
@@ -115,13 +130,14 @@ export function drawZ01SpriteSheetCharacter(
     pose: CharacterPose;
   },
 ) {
-  const selectedFrame = selectZ01Frame(options.pose, options.beat, options.active);
+  const selectedFrame = selectCombatFrame(options.pose, options.beat, options.active);
+  const sheet = characterSheets[characterId];
   const sheetScale = scale * 0.18;
   const width = selectedFrame.width * sheetScale;
   const height = selectedFrame.height * sheetScale;
 
-  if (!z01Sheet.complete || z01Sheet.naturalWidth === 0) {
-    ctx.fillStyle = '#72e9ff';
+  if (!sheet.complete || sheet.naturalWidth === 0) {
+    ctx.fillStyle = fallbackColors[characterId];
     ctx.fillRect(
       Math.round(x - 18 * sheetScale),
       Math.round(y - 62 * sheetScale),
@@ -133,11 +149,11 @@ export function drawZ01SpriteSheetCharacter(
 
   ctx.save();
   ctx.imageSmoothingEnabled = false;
-  const sourceCellWidth = z01Sheet.naturalWidth / 4;
-  const sourceCellHeight = z01Sheet.naturalHeight / 4;
+  const sourceCellWidth = sheet.naturalWidth / 4;
+  const sourceCellHeight = sheet.naturalHeight / 4;
   const sourceInset = 4;
   ctx.drawImage(
-    z01Sheet,
+    sheet,
     selectedFrame.column * sourceCellWidth + sourceInset,
     selectedFrame.row * sourceCellHeight + sourceInset,
     sourceCellWidth - sourceInset * 2,

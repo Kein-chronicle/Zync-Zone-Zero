@@ -448,8 +448,17 @@ function applyAttack(action: 'weak' | 'heavy', grade: Grade, now: number, chainS
   groggy = clamp(groggy + groggyGain * multiplier * activeCharacter.groggyPower, 0, 100);
   energy = action === 'weak' ? clamp(energy + 6 * multiplier, 0, 100) : energy;
 
-  addEffect(action === 'weak' ? 'slashArc' : 'hitSpark', 640, 265, action === 'weak' ? '#f0f3f7' : '#f5c84c', multiplier);
-  addSpriteEffect(action === 'weak' ? 'slash' : 'projectile', 640, action === 'weak' ? 395 : 365, action === 'weak' ? 0.55 : 0.48, action === 'weak' ? 0.28 : 0.34, 0.9);
+  const activeEffectColor = activeCharacter.name === 'Z-02' ? activeCharacter.accent : action === 'weak' ? '#f0f3f7' : '#f5c84c';
+  const activeSpriteEffect = activeCharacter.name === 'Z-02' ? 'impactGold' : action === 'weak' ? 'slash' : 'projectile';
+  addEffect(action === 'weak' ? 'slashArc' : 'hitSpark', 640, 265, activeEffectColor, multiplier);
+  addSpriteEffect(
+    activeSpriteEffect,
+    640,
+    activeCharacter.name === 'Z-02' ? 375 : action === 'weak' ? 395 : 365,
+    activeCharacter.name === 'Z-02' ? 0.58 : action === 'weak' ? 0.55 : 0.48,
+    action === 'weak' ? 0.28 : 0.34,
+    0.9,
+  );
   addEffect('beatRing', 1120, 610, grade === 'PERFECT' ? '#f5c84c' : '#0fb9b1', multiplier);
   addFloatingText(comboName || grade, 640, 525, comboName ? '#f5c84c' : '#f0f3f7');
 }

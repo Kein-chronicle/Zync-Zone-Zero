@@ -1,4 +1,4 @@
-export type SpriteSheetEffectType = 'projectile' | 'slash';
+export type SpriteSheetEffectType = 'impactGold' | 'projectile' | 'slash';
 
 export interface SpriteSheetEffect {
   type: SpriteSheetEffectType;
@@ -16,8 +16,19 @@ slashSheet.src = '/assets/sprites/effects/slash/z01-slash-effect-v1.png';
 const projectileSheet = new Image();
 projectileSheet.src = '/assets/sprites/effects/projectile/energy-projectile-effect-v1.png';
 
+const impactGoldSheet = new Image();
+impactGoldSheet.src = '/assets/sprites/effects/impact/z02-impact-effect-v1.png';
+
 function getSheet(type: SpriteSheetEffectType) {
-  return type === 'slash' ? slashSheet : projectileSheet;
+  if (type === 'slash') {
+    return slashSheet;
+  }
+
+  if (type === 'impactGold') {
+    return impactGoldSheet;
+  }
+
+  return projectileSheet;
 }
 
 export function createSpriteSheetEffect(

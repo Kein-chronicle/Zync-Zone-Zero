@@ -1,4 +1,4 @@
-import { drawZ01SpriteSheetCharacter, type CharacterPose } from './spriteSheetSprites';
+import { drawSpriteSheetCharacter, type CharacterPose } from './spriteSheetSprites';
 
 export interface PixelCharacter {
   name: string;
@@ -97,9 +97,9 @@ export function drawPixelCharacter(
   ctx.translate(Math.round(x), Math.round(y));
   ctx.imageSmoothingEnabled = false;
 
-  if (character.name === 'Z-01') {
+  if (character.name === 'Z-01' || character.name === 'Z-02') {
     ctx.restore();
-    drawZ01SpriteSheetCharacter(ctx, x, y, scale, {
+    drawSpriteSheetCharacter(character.name, ctx, x, y, scale, {
       active: options.active,
       beat: options.beat,
       pose: options.pose,
