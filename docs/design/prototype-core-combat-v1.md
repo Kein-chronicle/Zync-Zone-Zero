@@ -2,20 +2,20 @@
 
 ## Purpose
 
-Validate whether a fixed-camera boss confrontation can feel good when combat actions are judged by rhythm timing.
+Validate whether a fixed-camera boss confrontation can feel good when combat actions are judged by enemy motion and rhythm timing together.
 
 ## Current Playable Loop
 
 - Root page opens directly into the combat scene.
 - Boss is large and centered.
 - Player is shown from behind in the foreground.
-- Incoming boss threats travel down lanes toward the player.
-- Player responds with beat-timed actions.
+- Boss attacks are readable through windup, impact, and recovery animation states.
+- Player responds to the boss movement with beat-timed actions.
 
 ## Controls
 
-- `J`: Attack
-- `K`: Heavy
+- `J`: Weak attack
+- `K`: Heavy attack
 - `L`: Dodge
 - `;`: Parry
 - `R`: Reset
@@ -25,17 +25,20 @@ Validate whether a fixed-camera boss confrontation can feel good when combat act
 - 120 BPM beat clock.
 - Timing grades: Miss, Bad, Good, Perfect.
 - Boss HP, Player HP, Sync, Energy, Break, Score, Combo.
-- Dodge and Parry threats.
-- Perfect defensive responses build Break and Energy.
-- Attack and Heavy deal beat-graded damage.
-- Break meter triggers `Break Phrase`, temporarily increasing damage.
+- Enemy attacks are represented by boss action states, not falling notes.
+- Weak attack, heavy attack, and dodge can form short action combos.
+- Parry during the enemy impact window builds high Groggy.
+- Dodge during the enemy impact window opens a counter window.
+- Weak and heavy attacks deal beat-graded damage.
+- Groggy triggers `Groggy Break`, temporarily increasing damage.
 
 ## What This Tests
 
-- Whether fixed camera pressure is readable.
-- Whether rhythm timing feels connected to combat value.
-- Whether defensive timing can become offensive reward.
-- Whether Break Phrase gives a satisfying combat spike.
+- Whether fixed camera boss movement is readable without note lanes.
+- Whether rhythm timing can support action combat instead of replacing it.
+- Whether dodge and attack combinations feel useful.
+- Whether parry feels like the main Groggy-building skill.
+- Whether Groggy Break gives a satisfying combat spike.
 
 ## Known Limits
 
@@ -44,4 +47,3 @@ Validate whether a fixed-camera boss confrontation can feel good when combat act
 - Boss visuals are placeholder shapes.
 - Threat authoring is hardcoded.
 - Latency calibration is not implemented.
-

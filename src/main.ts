@@ -1,15 +1,20 @@
 import './styles.css';
 
-type Action = 'attack' | 'heavy' | 'dodge' | 'parry';
+type Action = 'weak' | 'heavy' | 'dodge' | 'parry';
 type Grade = 'MISS' | 'BAD' | 'GOOD' | 'PERFECT';
-type ThreatType = 'dodge' | 'parry';
+type EnemyMove = 'slash' | 'slam' | 'thrust';
 
-interface Threat {
+interface EnemyAttack {
   id: number;
-  beat: number;
-  type: ThreatType;
-  lane: number;
+  move: EnemyMove;
+  windupBeat: number;
+  impactBeat: number;
   resolved: boolean;
+}
+
+interface CombatInput {
+  action: Action;
+  time: number;
 }
 
 interface FloatingText {
@@ -28,9 +33,9 @@ if (!app) {
 
 app.innerHTML = `
   <main class="combat-shell">
-    <canvas id="game" width="1280" height="720" aria-label="Zync Zone Zero core combat prototype"></canvas>
+    <canvas id="game" width="1280" height="720" aria-label="Zync Zone Zero action combat prototype"></canvas>
     <div class="input-strip" aria-label="combat controls">
-      <button data-action="attack"><span>J</span>Attack</button>
+      <button data-action="weak"><span>J</span>Weak</button>
       <button data-action="heavy"><span>K</span>Heavy</button>
       <button data-action="dodge"><span>L</span>Dodge</button>
       <button data-action="parry"><span>;</span>Parry</button>
@@ -49,15 +54,13 @@ const gameCanvas = canvas;
 const gameContext = context;
 const beatDuration = 0.5;
 const startTime = performance.now() / 1000;
-const threatPattern: Array<Omit<Threat, 'id' | 'beat' | 'resolved'>> = [
-  { type: 'dodge', lane: 0 },
-  { type: 'parry', lane: 1 },
-  { type: 'dodge', lane: 2 },
-  { type: 'parry', lane: 1 },
+const attackPattern: Array<{ move: EnemyMove; windup: number; impact: number }> = [
+  { move: 'slash', windup: 1, impact: 2 },
+  { move: 'slam', windup: 4, impact: 5 },
+  { move: 'thrust', windup: 6, impact: 7 },
 ];
-const threatBeats = [2, 4, 6, 7];
 const keys: Record<string, Action> = {
-  j: 'attack',
+  j: 'weak',
   k: 'heavy',
   l: 'dodge',
   ';': 'parry',
@@ -68,16 +71,19 @@ let playerHp = 100;
 let bossHp = 100;
 let sync = 50;
 let energy = 0;
-let breakMeter = 0;
+let groggy = 0;
 let score = 0;
 let combo = 0;
 let maxCombo = 0;
 let lastGrade: Grade = 'GOOD';
 let lastAction = 'Ready';
 let breakUntilBeat = -1;
-let threatId = 0;
 let generatedCycle = -1;
-const threats: Threat[] = [];
+let attackId = 0;
+let evasionUntil = 0;
+let counterUntil = 0;
+const attacks: EnemyAttack[] = [];
+const inputHistory: CombatInput[] = [];
 const floatingTexts: FloatingText[] = [];
 
 function getSongTime(now = performance.now() / 1000) {
@@ -96,15 +102,15 @@ function getNearestBeatOffset(now = performance.now() / 1000) {
 function gradeInput(now = performance.now() / 1000): Grade {
   const offsetMs = Math.abs(getNearestBeatOffset(now) * beatDuration * 1000);
 
-  if (offsetMs <= 55) {
+  if (offsetMs <= 60) {
     return 'PERFECT';
   }
 
-  if (offsetMs <= 110) {
+  if (offsetMs <= 120) {
     return 'GOOD';
   }
 
-  if (offsetMs <= 180) {
+  if (offsetMs <= 190) {
     return 'BAD';
   }
 
@@ -113,7 +119,7 @@ function gradeInput(now = performance.now() / 1000): Grade {
 
 function gradeMultiplier(grade: Grade) {
   if (grade === 'PERFECT') {
-    return 1.6;
+    return 1.55;
   }
 
   if (grade === 'GOOD') {
@@ -121,21 +127,21 @@ function gradeMultiplier(grade: Grade) {
   }
 
   if (grade === 'BAD') {
-    return 0.45;
+    return 0.4;
   }
 
   return 0;
-}
-
-function addFloatingText(text: string, x: number, y: number, color: string) {
-  floatingTexts.push({ text, x, y, color, ttl: 0.9 });
 }
 
 function clamp(value: number, min: number, max: number) {
   return Math.max(min, Math.min(max, value));
 }
 
-function generateThreats(currentBeat: number) {
+function addFloatingText(text: string, x: number, y: number, color: string) {
+  floatingTexts.push({ text, x, y, color, ttl: 0.85 });
+}
+
+function generateEnemyAttacks(currentBeat: number) {
   const cycle = Math.floor(currentBeat / 8);
 
   if (cycle <= generatedCycle) {
@@ -143,53 +149,180 @@ function generateThreats(currentBeat: number) {
   }
 
   for (let nextCycle = generatedCycle + 1; nextCycle <= cycle + 2; nextCycle += 1) {
-    threatBeats.forEach((beatOffset, index) => {
-      const pattern = threatPattern[index];
-      threats.push({
-        id: threatId,
-        beat: nextCycle * 8 + beatOffset,
-        lane: pattern.lane,
-        type: pattern.type,
+    attackPattern.forEach((pattern) => {
+      attacks.push({
+        id: attackId,
+        move: pattern.move,
+        windupBeat: nextCycle * 8 + pattern.windup,
+        impactBeat: nextCycle * 8 + pattern.impact,
         resolved: false,
       });
-      threatId += 1;
+      attackId += 1;
     });
   }
 
   generatedCycle = cycle + 2;
 }
 
-function findActiveThreat(action: Action, now = performance.now() / 1000) {
+function getActiveAttack(now = performance.now() / 1000) {
   const beatFloat = getBeatFloat(now);
 
-  return threats.find((threat) => {
-    if (threat.resolved || threat.type !== action) {
+  return attacks.find((attack) => {
+    if (attack.resolved) {
       return false;
     }
 
-    return Math.abs(threat.beat - beatFloat) <= 0.28;
+    return beatFloat >= attack.windupBeat - 0.25 && beatFloat <= attack.impactBeat + 0.45;
   });
 }
 
-function resolveMissedThreats(now = performance.now() / 1000) {
+function getIncomingAttack(now = performance.now() / 1000) {
   const beatFloat = getBeatFloat(now);
 
-  threats.forEach((threat) => {
-    if (!threat.resolved && beatFloat - threat.beat > 0.32 && breakUntilBeat < beatFloat) {
-      threat.resolved = true;
-      playerHp = clamp(playerHp - 9, 0, 100);
+  return attacks.find((attack) => !attack.resolved && attack.impactBeat >= beatFloat - 0.1);
+}
+
+function getAttackPhase(attack: EnemyAttack | undefined, now = performance.now() / 1000) {
+  if (!attack) {
+    return 'idle';
+  }
+
+  const beatFloat = getBeatFloat(now);
+
+  if (beatFloat < attack.windupBeat) {
+    return 'idle';
+  }
+
+  if (beatFloat < attack.impactBeat - 0.18) {
+    return 'windup';
+  }
+
+  if (beatFloat <= attack.impactBeat + 0.2) {
+    return 'impact';
+  }
+
+  return 'recover';
+}
+
+function findParryTarget(now = performance.now() / 1000) {
+  const beatFloat = getBeatFloat(now);
+
+  return attacks.find((attack) => !attack.resolved && Math.abs(attack.impactBeat - beatFloat) <= 0.24);
+}
+
+function findDodgeTarget(now = performance.now() / 1000) {
+  const beatFloat = getBeatFloat(now);
+
+  return attacks.find((attack) => !attack.resolved && Math.abs(attack.impactBeat - beatFloat) <= 0.34);
+}
+
+function resolveEnemyHits(now = performance.now() / 1000) {
+  const beatFloat = getBeatFloat(now);
+
+  attacks.forEach((attack) => {
+    if (!attack.resolved && beatFloat > attack.impactBeat + 0.26) {
+      attack.resolved = true;
+
+      if (now <= evasionUntil || beatFloat < breakUntilBeat) {
+        addFloatingText('WHIFF', 640, 455, '#8a95a8');
+        return;
+      }
+
+      playerHp = clamp(playerHp - 10, 0, 100);
+      sync = clamp(sync - 9, 0, 100);
       combo = 0;
-      sync = clamp(sync - 8, 0, 100);
-      addFloatingText('HIT', 640 + (threat.lane - 1) * 150, 460, '#ff5a6e');
+      addFloatingText('HIT', 640, 470, '#ff5a6e');
     }
   });
+}
+
+function pushInput(action: Action, now: number) {
+  inputHistory.push({ action, time: now });
+
+  while (inputHistory.length > 0 && now - inputHistory[0].time > 1.3) {
+    inputHistory.shift();
+  }
+}
+
+function getComboName() {
+  const recent = inputHistory.map((input) => input.action).slice(-3).join('-');
+
+  if (recent.endsWith('weak-weak-heavy')) {
+    return 'RUSH FINISH';
+  }
+
+  if (recent.endsWith('weak-heavy')) {
+    return 'LAUNCH CUT';
+  }
+
+  if (recent.endsWith('dodge-weak')) {
+    return 'EVADE COUNTER';
+  }
+
+  if (recent.endsWith('heavy-heavy')) {
+    return 'BREAKER';
+  }
+
+  return '';
 }
 
 function enterBreak(now = performance.now() / 1000) {
   const currentBeat = Math.floor(getBeatFloat(now));
   breakUntilBeat = currentBeat + 8;
-  breakMeter = 0;
-  addFloatingText('BREAK PHRASE', 640, 270, '#f5c84c');
+  groggy = 0;
+  counterUntil = now + 1.8;
+  addFloatingText('GROGGY BREAK', 640, 270, '#f5c84c');
+}
+
+function applyAttack(action: 'weak' | 'heavy', grade: Grade, now: number) {
+  const beatFloat = getBeatFloat(now);
+  const multiplier = gradeMultiplier(grade);
+  const inBreak = beatFloat < breakUntilBeat;
+  const inCounter = now < counterUntil;
+  const comboName = getComboName();
+  const energyReady = energy >= 18;
+  let damage = action === 'weak' ? 0.85 : 1.8;
+  let groggyGain = action === 'weak' ? 2.4 : 5.5;
+
+  if (action === 'heavy' && !energyReady && !inBreak) {
+    damage *= 0.45;
+    groggyGain *= 0.45;
+    addFloatingText('LOW ENERGY', 640, 535, '#ff9f43');
+  } else if (action === 'heavy' && !inBreak) {
+    energy = clamp(energy - 18, 0, 100);
+  }
+
+  if (comboName === 'RUSH FINISH') {
+    damage += 1.4;
+  }
+
+  if (comboName === 'LAUNCH CUT') {
+    groggyGain += 3;
+  }
+
+  if (comboName === 'EVADE COUNTER') {
+    damage += 1.8;
+    groggyGain += 3;
+  }
+
+  if (comboName === 'BREAKER') {
+    groggyGain += 7;
+  }
+
+  if (inBreak) {
+    damage *= 2.7;
+  }
+
+  if (inCounter) {
+    damage *= 1.6;
+    groggyGain *= 1.5;
+  }
+
+  bossHp = clamp(bossHp - damage * multiplier, 0, 100);
+  groggy = clamp(groggy + groggyGain * multiplier, 0, 100);
+  energy = action === 'weak' ? clamp(energy + 6 * multiplier, 0, 100) : energy;
+
+  addFloatingText(comboName || grade, 640, 525, comboName ? '#f5c84c' : '#f0f3f7');
 }
 
 function handleAction(action: Action) {
@@ -198,16 +331,15 @@ function handleAction(action: Action) {
   }
 
   const now = performance.now() / 1000;
-  const beatFloat = getBeatFloat(now);
   const grade = gradeInput(now);
   const multiplier = gradeMultiplier(grade);
-  const inBreak = beatFloat < breakUntilBeat;
   lastGrade = grade;
   lastAction = action.toUpperCase();
+  pushInput(action, now);
 
   if (grade === 'MISS') {
     combo = 0;
-    sync = clamp(sync - 6, 0, 100);
+    sync = clamp(sync - 5, 0, 100);
     addFloatingText('MISS', 640, 610, '#8a95a8');
     return;
   }
@@ -215,42 +347,45 @@ function handleAction(action: Action) {
   combo += 1;
   maxCombo = Math.max(maxCombo, combo);
   sync = clamp(sync + (grade === 'PERFECT' ? 4 : 2), 0, 100);
-  score += Math.round(100 * multiplier * (1 + combo / 50));
+  score += Math.round(90 * multiplier * (1 + combo / 45));
 
-  if (action === 'attack') {
-    const damage = (inBreak ? 2.4 : 0.9) * multiplier;
-    bossHp = clamp(bossHp - damage, 0, 100);
-    energy = clamp(energy + 8 * multiplier, 0, 100);
-    breakMeter = clamp(breakMeter + 4 * multiplier, 0, 100);
-    addFloatingText(grade, 640, 530, grade === 'PERFECT' ? '#0fb9b1' : '#f0f3f7');
+  if (action === 'weak' || action === 'heavy') {
+    applyAttack(action, grade, now);
   }
 
-  if (action === 'heavy') {
-    const canSpend = energy >= 20 || inBreak;
-    const damage = canSpend ? (inBreak ? 4.8 : 2.1) * multiplier : 0.4 * multiplier;
-    bossHp = clamp(bossHp - damage, 0, 100);
-    energy = canSpend && !inBreak ? clamp(energy - 20, 0, 100) : clamp(energy + 3, 0, 100);
-    breakMeter = clamp(breakMeter + (canSpend ? 9 : 2) * multiplier, 0, 100);
-    addFloatingText(canSpend ? grade : 'LOW ENERGY', 640, 520, canSpend ? '#f5c84c' : '#ff9f43');
-  }
+  if (action === 'dodge') {
+    const target = findDodgeTarget(now);
+    evasionUntil = now + (grade === 'PERFECT' ? 0.55 : 0.38);
 
-  if (action === 'dodge' || action === 'parry') {
-    const threat = findActiveThreat(action, now);
-
-    if (threat) {
-      threat.resolved = true;
-      const reward = action === 'parry' ? 15 : 9;
-      breakMeter = clamp(breakMeter + reward * multiplier, 0, 100);
-      energy = clamp(energy + reward * 0.7, 0, 100);
-      score += Math.round(220 * multiplier);
-      addFloatingText(action === 'parry' ? 'COUNTER' : 'EVADE', 640, 455, action === 'parry' ? '#f5c84c' : '#0fb9b1');
+    if (target) {
+      target.resolved = true;
+      counterUntil = now + 1;
+      energy = clamp(energy + 7 * multiplier, 0, 100);
+      score += Math.round(140 * multiplier);
+      addFloatingText('EVADE WINDOW', 640, 485, '#0fb9b1');
     } else {
-      sync = clamp(sync - 3, 0, 100);
-      addFloatingText('NO THREAT', 640, 610, '#8a95a8');
+      addFloatingText('STEP', 640, 575, '#8a95a8');
     }
   }
 
-  if (breakMeter >= 100 && beatFloat >= breakUntilBeat) {
+  if (action === 'parry') {
+    const target = findParryTarget(now);
+
+    if (target) {
+      target.resolved = true;
+      counterUntil = now + 1.4;
+      groggy = clamp(groggy + 22 * multiplier, 0, 100);
+      energy = clamp(energy + 14 * multiplier, 0, 100);
+      score += Math.round(260 * multiplier);
+      addFloatingText('PARRY', 640, 465, '#f5c84c');
+    } else {
+      combo = 0;
+      sync = clamp(sync - 4, 0, 100);
+      addFloatingText('PARRY WHIFF', 640, 575, '#ff9f43');
+    }
+  }
+
+  if (groggy >= 100 && getBeatFloat(now) >= breakUntilBeat) {
     enterBreak(now);
   }
 }
@@ -260,16 +395,19 @@ function resetFight() {
   bossHp = 100;
   sync = 50;
   energy = 0;
-  breakMeter = 0;
+  groggy = 0;
   score = 0;
   combo = 0;
   maxCombo = 0;
   lastGrade = 'GOOD';
   lastAction = 'Ready';
   breakUntilBeat = -1;
-  threats.length = 0;
-  floatingTexts.length = 0;
   generatedCycle = -1;
+  evasionUntil = 0;
+  counterUntil = 0;
+  attacks.length = 0;
+  inputHistory.length = 0;
+  floatingTexts.length = 0;
 }
 
 function drawMeter(label: string, value: number, x: number, y: number, width: number, color: string) {
@@ -291,90 +429,102 @@ function drawText(text: string, x: number, y: number, size: number, color: strin
 }
 
 function drawBoss(now: number) {
-  const beatPulse = 1 + Math.sin(getBeatFloat(now) * Math.PI * 2) * 0.025;
+  const activeAttack = getActiveAttack(now);
+  const phase = getAttackPhase(activeAttack, now);
+  const beatPulse = 1 + Math.sin(getBeatFloat(now) * Math.PI * 2) * 0.018;
+  const impactPulse = phase === 'impact' ? 1.12 : 1;
   const x = 640;
-  const y = 220;
-  const width = 390 * beatPulse;
-  const height = 250 * beatPulse;
+  const y = activeAttack?.move === 'slam' ? 240 : 220;
+  const width = 380 * beatPulse * impactPulse;
+  const height = 245 * beatPulse * impactPulse;
+  const color = phase === 'impact' ? '#3b2029' : phase === 'windup' ? '#2f2b24' : '#242932';
+  const armOffset = phase === 'windup' ? 48 : phase === 'impact' ? -30 : 0;
+  const attackLean = activeAttack?.move === 'thrust' ? 34 : activeAttack?.move === 'slash' ? -28 : 0;
 
-  gameContext.fillStyle = '#242932';
+  gameContext.fillStyle = color;
   gameContext.beginPath();
-  gameContext.roundRect(x - width / 2, y - height / 2, width, height, 34);
+  gameContext.roundRect(x - width / 2 + attackLean, y - height / 2, width, height, 34);
   gameContext.fill();
+
+  gameContext.strokeStyle = phase === 'impact' ? '#ff5a6e' : '#0fb9b1';
+  gameContext.lineWidth = 12;
+  gameContext.beginPath();
+
+  if (activeAttack?.move === 'slam') {
+    gameContext.moveTo(x - 125, y - 70 - armOffset);
+    gameContext.lineTo(x - 40, y + 80 + armOffset);
+    gameContext.moveTo(x + 125, y - 70 - armOffset);
+    gameContext.lineTo(x + 40, y + 80 + armOffset);
+  } else if (activeAttack?.move === 'thrust') {
+    gameContext.moveTo(x - 150, y + 40);
+    gameContext.lineTo(x + 165 + armOffset, y + 18);
+    gameContext.moveTo(x - 145, y + 72);
+    gameContext.lineTo(x + 130 + armOffset, y + 72);
+  } else {
+    gameContext.moveTo(x - 150 - armOffset, y - 35);
+    gameContext.lineTo(x + 130 + armOffset, y + 85);
+    gameContext.moveTo(x + 150 + armOffset, y - 35);
+    gameContext.lineTo(x - 130 - armOffset, y + 85);
+  }
+
+  gameContext.stroke();
 
   gameContext.fillStyle = '#ff5a6e';
   gameContext.beginPath();
-  gameContext.arc(x - 82, y - 26, 18, 0, Math.PI * 2);
-  gameContext.arc(x + 82, y - 26, 18, 0, Math.PI * 2);
+  gameContext.arc(x - 82 + attackLean * 0.25, y - 26, 18, 0, Math.PI * 2);
+  gameContext.arc(x + 82 + attackLean * 0.25, y - 26, 18, 0, Math.PI * 2);
   gameContext.fill();
 
-  gameContext.strokeStyle = '#0fb9b1';
-  gameContext.lineWidth = 4;
-  gameContext.beginPath();
-  gameContext.moveTo(x - 120, y + 78);
-  gameContext.lineTo(x + 120, y + 78);
-  gameContext.stroke();
-
-  drawText('BOSS', x, y - 150, 15, '#8a95a8', 'center');
+  const label = activeAttack ? `${activeAttack.move.toUpperCase()} · ${phase.toUpperCase()}` : 'WATCH THE BOSS';
+  drawText(label, x, y - 150, 15, phase === 'impact' ? '#ff5a6e' : '#8a95a8', 'center');
 }
 
-function drawPlayer() {
+function drawPlayer(now: number) {
   const x = 640;
   const y = 585;
+  const isEvading = now <= evasionUntil;
+  const isCounter = now <= counterUntil;
+  const lean = isEvading ? -34 : 0;
 
-  gameContext.fillStyle = '#f0f3f7';
+  gameContext.fillStyle = isCounter ? '#f5c84c' : '#f0f3f7';
   gameContext.beginPath();
-  gameContext.arc(x, y - 78, 28, 0, Math.PI * 2);
+  gameContext.arc(x + lean, y - 78, 28, 0, Math.PI * 2);
   gameContext.fill();
 
-  gameContext.fillStyle = '#d9dee8';
+  gameContext.fillStyle = isEvading ? '#b8eef0' : '#d9dee8';
   gameContext.beginPath();
-  gameContext.roundRect(x - 48, y - 46, 96, 120, 22);
+  gameContext.roundRect(x - 48 + lean, y - 46, 96, 120, 22);
   gameContext.fill();
 
-  gameContext.strokeStyle = '#0fb9b1';
+  gameContext.strokeStyle = isCounter ? '#f5c84c' : '#0fb9b1';
   gameContext.lineWidth = 6;
   gameContext.beginPath();
-  gameContext.moveTo(x - 90, y + 15);
-  gameContext.lineTo(x - 18, y - 22);
-  gameContext.moveTo(x + 90, y + 15);
-  gameContext.lineTo(x + 18, y - 22);
+  gameContext.moveTo(x - 96 + lean, y + 18);
+  gameContext.lineTo(x - 18 + lean, y - 22);
+  gameContext.moveTo(x + 96 + lean, y + 18);
+  gameContext.lineTo(x + 18 + lean, y - 22);
   gameContext.stroke();
 }
 
-function drawThreats(now: number) {
+function drawAttackRead(now: number) {
+  const attack = getIncomingAttack(now);
+
+  if (!attack) {
+    drawText('Enemy neutral. Build pressure.', 640, 372, 17, '#8a95a8', 'center');
+    return;
+  }
+
   const beatFloat = getBeatFloat(now);
-  const laneX = [440, 640, 840];
-  const judgmentY = 594;
+  const untilImpact = attack.impactBeat - beatFloat;
+  const progress = clamp(1 - untilImpact / Math.max(attack.impactBeat - attack.windupBeat, 0.1), 0, 1);
+  const color = untilImpact <= 0.25 ? '#ff5a6e' : '#f5c84c';
 
-  gameContext.strokeStyle = '#2c313a';
-  gameContext.lineWidth = 2;
-  laneX.forEach((x) => {
-    gameContext.beginPath();
-    gameContext.moveTo(x, 330);
-    gameContext.lineTo(x, judgmentY);
-    gameContext.stroke();
-  });
-
-  gameContext.strokeStyle = '#f0f3f7';
-  gameContext.lineWidth = 3;
-  gameContext.beginPath();
-  gameContext.moveTo(360, judgmentY);
-  gameContext.lineTo(920, judgmentY);
-  gameContext.stroke();
-
-  threats
-    .filter((threat) => !threat.resolved && threat.beat - beatFloat < 5 && threat.beat - beatFloat > -0.4)
-    .forEach((threat) => {
-      const distance = threat.beat - beatFloat;
-      const y = judgmentY - distance * 70;
-      const x = laneX[threat.lane];
-      gameContext.fillStyle = threat.type === 'parry' ? '#f5c84c' : '#ff5a6e';
-      gameContext.beginPath();
-      gameContext.roundRect(x - 38, y - 20, 76, 40, 10);
-      gameContext.fill();
-      drawText(threat.type.toUpperCase(), x, y + 6, 14, '#101114', 'center');
-    });
+  gameContext.fillStyle = '#20242b';
+  gameContext.fillRect(440, 360, 400, 10);
+  gameContext.fillStyle = color;
+  gameContext.fillRect(440, 360, 400 * progress, 10);
+  drawText('Enemy motion read', 640, 344, 15, '#8a95a8', 'center');
+  drawText(`${attack.move.toUpperCase()} impact in ${Math.max(untilImpact, 0).toFixed(1)} beats`, 640, 396, 20, color, 'center');
 }
 
 function drawBeatRing(now: number) {
@@ -407,7 +557,7 @@ function drawFloatingTexts(deltaSeconds: number) {
       continue;
     }
 
-    gameContext.globalAlpha = clamp(item.ttl / 0.9, 0, 1);
+    gameContext.globalAlpha = clamp(item.ttl / 0.85, 0, 1);
     drawText(item.text, item.x, item.y, 24, item.color, 'center');
     gameContext.globalAlpha = 1;
   }
@@ -416,7 +566,7 @@ function drawFloatingTexts(deltaSeconds: number) {
 function drawHud(now: number) {
   const beatFloat = getBeatFloat(now);
   const inBreak = beatFloat < breakUntilBeat;
-  const result = playerHp <= 0 ? 'FAILED' : bossHp <= 0 ? 'CLEARED' : inBreak ? 'BREAK PHRASE' : 'ASSAULT';
+  const result = playerHp <= 0 ? 'FAILED' : bossHp <= 0 ? 'CLEARED' : inBreak ? 'GROGGY BREAK' : 'ACTION ASSAULT';
 
   drawText('ZYNC ZONE ZERO', 32, 44, 26, '#f0f3f7');
   drawText(result, 32, 74, 15, inBreak ? '#f5c84c' : '#8a95a8');
@@ -425,18 +575,18 @@ function drawHud(now: number) {
   drawMeter('SYNC', sync, 32, 150, 240, '#f5c84c');
   drawMeter('ENERGY', energy, 32, 188, 240, '#7c5cff');
   drawMeter('BOSS HP', bossHp, 1008, 112, 240, '#ff5a6e');
-  drawMeter('BREAK', breakMeter, 1008, 150, 240, '#f5c84c');
+  drawMeter('GROGGY', groggy, 1008, 150, 240, '#f5c84c');
 
   drawText(`SCORE ${score}`, 32, 662, 22, '#f0f3f7');
   drawText(`COMBO ${combo} / MAX ${maxCombo}`, 32, 690, 15, '#8a95a8');
   drawText(`${lastAction} · ${lastGrade}`, 1248, 690, 18, '#f0f3f7', 'right');
-  drawText('J Attack   K Heavy   L Dodge   ; Parry   R Reset', 640, 32, 15, '#8a95a8', 'center');
+  drawText('J Weak   K Heavy   L Dodge   ; Parry   R Reset', 640, 32, 15, '#8a95a8', 'center');
 }
 
 function update(deltaSeconds: number, now: number) {
   const beat = Math.floor(getBeatFloat(now));
-  generateThreats(beat);
-  resolveMissedThreats(now);
+  generateEnemyAttacks(beat);
+  resolveEnemyHits(now);
 
   if (sync <= 0) {
     playerHp = clamp(playerHp - deltaSeconds * 3, 0, 100);
@@ -458,8 +608,8 @@ function render(nowMs: number) {
   gameContext.fillRect(0, 310, gameCanvas.width, 410);
 
   drawBoss(now);
-  drawThreats(now);
-  drawPlayer();
+  drawAttackRead(now);
+  drawPlayer(now);
   drawBeatRing(now);
   drawHud(now);
   drawFloatingTexts(deltaSeconds);
