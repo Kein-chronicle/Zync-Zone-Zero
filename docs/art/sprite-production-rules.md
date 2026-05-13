@@ -180,13 +180,24 @@ Do not change: hair shape, cyan clip, jacket silhouette, weapon type, palette
 - dodge start
 - dodge active
 - dodge recovery
+- evade attack startup
+- evade attack impact
+- evade attack recovery
 - guard ready
 - guard impact
 - tag parry entrance
 - tag parry guard
 - tag parry impact
+- tag parry attack startup
+- tag parry attack impact
+- tag parry attack recovery
+- tag attack entrance
+- tag attack startup
+- tag attack impact
+- tag attack recovery
 - counter attack startup
 - counter attack impact
+- counter attack recovery
 - ultimate cut-in ready
 - ultimate startup
 - ultimate charge
@@ -208,6 +219,10 @@ Do not change: hair shape, cyan clip, jacket silhouette, weapon type, palette
 - support attack loop 2
 - tag out
 - tag in
+- tag attack ready
+- tag attack follow-through
+- tag parry attack ready
+- tag parry attack follow-through
 - assist attack startup
 - assist attack impact
 - assist return
@@ -337,6 +352,33 @@ Frame list:
 8. heavy attack 2 recovery
 ```
 
+### Reactive Attack Prompt Group
+
+Use this group for actions that happen after reading or avoiding an enemy attack.
+
+```text
+Frame list:
+1. evade attack startup, character has just dodged and immediately turns momentum upward toward top-center enemy
+2. evade attack impact, fast punish strike aimed upward toward top-center enemy
+3. counter attack startup, grounded counter stance, weapon pulled back, back or three-quarter-back view
+4. counter attack impact, sharp counter hit aimed upward toward top-center enemy
+```
+
+### Tag Attack Prompt Group
+
+Tag attack and tag parry attack are different.
+
+- tag attack: a character switches in and attacks without necessarily blocking an enemy strike
+- tag parry attack: a character switches in, parries a yellow enemy attack, then performs a stronger punish
+
+```text
+Frame list:
+1. tag attack entrance, new character entering from off-screen support position, facing top-center enemy
+2. tag attack impact, clean assist strike aimed upward toward top-center enemy
+3. tag parry attack guard, new character blocks/parries incoming yellow attack while facing top-center enemy
+4. tag parry attack impact, stronger punish strike after the parry, aimed upward toward top-center enemy
+```
+
 ### Ultimate Prompt Group
 
 ```text
@@ -422,7 +464,10 @@ const z01Animations = {
   combatIdle: ['z01_combat_idle_001', 'z01_combat_idle_002'],
   weak1: ['z01_weak1_startup', 'z01_weak1_impact', 'z01_weak1_recovery'],
   dodge: ['z01_dodge_start', 'z01_dodge_active', 'z01_dodge_recovery'],
-  tagParry: ['z01_tag_in', 'z01_tag_guard', 'z01_tag_impact'],
+  evadeAttack: ['z01_evade_attack_startup', 'z01_evade_attack_impact', 'z01_evade_attack_recovery'],
+  counterAttack: ['z01_counter_startup', 'z01_counter_impact', 'z01_counter_recovery'],
+  tagAttack: ['z01_tag_attack_entrance', 'z01_tag_attack_impact', 'z01_tag_attack_recovery'],
+  tagParryAttack: ['z01_tag_parry_guard', 'z01_tag_parry_attack_impact', 'z01_tag_parry_attack_recovery'],
 };
 ```
 
