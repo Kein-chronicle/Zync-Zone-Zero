@@ -18,7 +18,7 @@ Validate whether a fixed-camera boss confrontation can feel good when combat act
 - `J`: Weak attack
 - `K`: Heavy attack
 - `L`: Dodge
-- `;`: Parry
+- `;`: Tag Parry
 - `R`: Reset
 
 ## Implemented Mechanics
@@ -28,10 +28,12 @@ Validate whether a fixed-camera boss confrontation can feel good when combat act
 - Boss HP, Player HP, Sync, Energy, Break, Score, Combo.
 - Enemy attacks are represented by boss action states, not falling notes.
 - Enemy attacks are split into yellow parryable attacks and red unparryable attacks.
+- Party has three characters. One is active; the other two auto-attack on rhythm.
 - Weak attack, heavy attack, and dodge can form short action combos.
 - Yellow attacks can be parried or dodged.
 - Red attacks must be dodged.
-- Parry during a yellow impact window builds high Groggy.
+- Tag during a yellow impact window switches character and parries on entry, building high Groggy.
+- Tag outside a parry window still switches the active character.
 - Dodge during any enemy impact window opens a counter window.
 - Weak and heavy attacks deal beat-graded damage.
 - Groggy triggers `Groggy Break`, temporarily increasing damage.

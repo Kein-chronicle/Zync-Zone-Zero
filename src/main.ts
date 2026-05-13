@@ -1,6 +1,6 @@
 import './styles.css';
 
-type Action = 'weak' | 'heavy' | 'dodge' | 'parry';
+type Action = 'weak' | 'heavy' | 'dodge' | 'tag';
 type Grade = 'MISS' | 'BAD' | 'GOOD' | 'PERFECT';
 type EnemyMove = 'slash' | 'slam' | 'thrust';
 type GuardType = 'parryable' | 'unparryable';
@@ -27,6 +27,12 @@ interface FloatingText {
   ttl: number;
 }
 
+interface Character {
+  name: string;
+  color: string;
+  x: number;
+}
+
 const app = document.querySelector<HTMLDivElement>('#app');
 
 if (!app) {
@@ -40,7 +46,7 @@ app.innerHTML = `
       <button data-action="weak"><span>J</span>Weak</button>
       <button data-action="heavy"><span>K</span>Heavy</button>
       <button data-action="dodge"><span>L</span>Dodge</button>
-      <button data-action="parry"><span>;</span>Parry</button>
+      <button data-action="tag"><span>;</span>Tag Parry</button>
     </div>
   </main>
 `;
@@ -61,11 +67,16 @@ const attackPattern: Array<{ move: EnemyMove; guardType: GuardType; windup: numb
   { move: 'slash', guardType: 'parryable', windup: 5, impact: 6 },
   { move: 'slam', guardType: 'unparryable', windup: 12, impact: 13 },
 ];
+const characters: Character[] = [
+  { name: 'Z-01', color: '#f0f3f7', x: 640 },
+  { name: 'Z-02', color: '#f5c84c', x: 500 },
+  { name: 'Z-03', color: '#0fb9b1', x: 780 },
+];
 const keys: Record<string, Action> = {
   j: 'weak',
   k: 'heavy',
   l: 'dodge',
-  ';': 'parry',
+  ';': 'tag',
 };
 
 let lastFrame = performance.now() / 1000;
@@ -84,6 +95,8 @@ let generatedCycle = -1;
 let attackId = 0;
 let evasionUntil = 0;
 let counterUntil = 0;
+let activeCharacterIndex = 0;
+let lastSupportBeat = -1;
 const attacks: EnemyAttack[] = [];
 const inputHistory: CombatInput[] = [];
 const floatingTexts: FloatingText[] = [];
@@ -230,6 +243,10 @@ function findUnparryableTarget(now = performance.now() / 1000) {
   );
 }
 
+function getNextCharacterIndex() {
+  return (activeCharacterIndex + 1) % characters.length;
+}
+
 function findDodgeTarget(now = performance.now() / 1000) {
   const beatFloat = getBeatFloat(now);
 
@@ -279,6 +296,10 @@ function getComboName() {
     return 'EVADE COUNTER';
   }
 
+  if (recent.endsWith('tag-weak')) {
+    return 'TAG COUNTER';
+  }
+
   if (recent.endsWith('heavy-heavy')) {
     return 'BREAKER';
   }
@@ -323,6 +344,11 @@ function applyAttack(action: 'weak' | 'heavy', grade: Grade, now: number) {
   if (comboName === 'EVADE COUNTER') {
     damage += 1.8;
     groggyGain += 3;
+  }
+
+  if (comboName === 'TAG COUNTER') {
+    damage += 2.2;
+    groggyGain += 4;
   }
 
   if (comboName === 'BREAKER') {
@@ -388,24 +414,28 @@ function handleAction(action: Action) {
     }
   }
 
-  if (action === 'parry') {
+  if (action === 'tag') {
+    const nextCharacterIndex = getNextCharacterIndex();
+    const nextCharacter = characters[nextCharacterIndex];
     const target = findParryTarget(now);
+    activeCharacterIndex = nextCharacterIndex;
+
+    lastAction = `TAG ${nextCharacter.name}`;
 
     if (target) {
       target.resolved = true;
       counterUntil = now + 1.4;
-      groggy = clamp(groggy + 22 * multiplier, 0, 100);
-      energy = clamp(energy + 14 * multiplier, 0, 100);
-      score += Math.round(260 * multiplier);
-      addFloatingText('PARRY', 640, 465, '#f5c84c');
+      groggy = clamp(groggy + 24 * multiplier, 0, 100);
+      energy = clamp(energy + 16 * multiplier, 0, 100);
+      score += Math.round(280 * multiplier);
+      addFloatingText(`${nextCharacter.name} TAG PARRY`, 640, 465, nextCharacter.color);
     } else if (findUnparryableTarget(now)) {
       combo = 0;
       sync = clamp(sync - 8, 0, 100);
-      addFloatingText('UNPARRYABLE', 640, 575, '#ff5a6e');
+      addFloatingText('TAG BLOCKED', 640, 575, '#ff5a6e');
     } else {
-      combo = 0;
-      sync = clamp(sync - 4, 0, 100);
-      addFloatingText('PARRY WHIFF', 640, 575, '#ff9f43');
+      counterUntil = now + 0.55;
+      addFloatingText(`${nextCharacter.name} TAG IN`, 640, 575, nextCharacter.color);
     }
   }
 
@@ -429,6 +459,8 @@ function resetFight() {
   generatedCycle = -1;
   evasionUntil = 0;
   counterUntil = 0;
+  activeCharacterIndex = 0;
+  lastSupportBeat = -1;
   attacks.length = 0;
   inputHistory.length = 0;
   floatingTexts.length = 0;
@@ -515,14 +547,42 @@ function drawBoss(now: number) {
   drawText(label, x, y - 150, 15, activeAttack ? attackColor : '#8a95a8', 'center');
 }
 
-function drawPlayer(now: number) {
+function drawParty(now: number) {
   const x = 640;
   const y = 585;
   const isEvading = now <= evasionUntil;
   const isCounter = now <= counterUntil;
   const lean = isEvading ? -34 : 0;
+  const activeCharacter = characters[activeCharacterIndex];
 
-  gameContext.fillStyle = isCounter ? '#f5c84c' : '#f0f3f7';
+  characters.forEach((character, index) => {
+    if (index === activeCharacterIndex) {
+      return;
+    }
+
+    const supportPulse = 1 + Math.sin((getBeatFloat(now) + index * 0.35) * Math.PI * 2) * 0.08;
+    gameContext.globalAlpha = 0.65;
+    gameContext.fillStyle = character.color;
+    gameContext.beginPath();
+    gameContext.arc(character.x, y - 52 - supportPulse * 6, 18, 0, Math.PI * 2);
+    gameContext.fill();
+
+    gameContext.fillStyle = '#252b34';
+    gameContext.beginPath();
+    gameContext.roundRect(character.x - 26, y - 25, 52, 74, 16);
+    gameContext.fill();
+
+    gameContext.strokeStyle = character.color;
+    gameContext.lineWidth = 4;
+    gameContext.beginPath();
+    gameContext.moveTo(character.x - 54, y + 12);
+    gameContext.lineTo(character.x + 54, y - 8);
+    gameContext.stroke();
+    gameContext.globalAlpha = 1;
+    drawText(character.name, character.x, y + 72, 13, '#8a95a8', 'center');
+  });
+
+  gameContext.fillStyle = isCounter ? activeCharacter.color : '#f0f3f7';
   gameContext.beginPath();
   gameContext.arc(x + lean, y - 78, 28, 0, Math.PI * 2);
   gameContext.fill();
@@ -532,7 +592,7 @@ function drawPlayer(now: number) {
   gameContext.roundRect(x - 48 + lean, y - 46, 96, 120, 22);
   gameContext.fill();
 
-  gameContext.strokeStyle = isCounter ? '#f5c84c' : '#0fb9b1';
+  gameContext.strokeStyle = activeCharacter.color;
   gameContext.lineWidth = 6;
   gameContext.beginPath();
   gameContext.moveTo(x - 96 + lean, y + 18);
@@ -540,6 +600,7 @@ function drawPlayer(now: number) {
   gameContext.moveTo(x + 96 + lean, y + 18);
   gameContext.lineTo(x + 18 + lean, y - 22);
   gameContext.stroke();
+  drawText(activeCharacter.name, x + lean, y + 98, 15, activeCharacter.color, 'center');
 }
 
 function drawAttackRead(now: number) {
@@ -554,7 +615,7 @@ function drawAttackRead(now: number) {
   const untilImpact = attack.impactBeat - beatFloat;
   const progress = clamp(1 - untilImpact / Math.max(attack.impactBeat - attack.windupBeat, 0.1), 0, 1);
   const color = attack.guardType === 'parryable' ? '#f5c84c' : '#ff5a6e';
-  const response = attack.guardType === 'parryable' ? 'PARRY OR DODGE' : 'DODGE ONLY';
+  const response = attack.guardType === 'parryable' ? 'TAG PARRY OR DODGE' : 'DODGE ONLY';
 
   gameContext.fillStyle = '#20242b';
   gameContext.fillRect(440, 360, 400, 10);
@@ -624,13 +685,28 @@ function drawHud(now: number) {
   drawText(`SCORE ${score}`, 32, 662, 22, '#f0f3f7');
   drawText(`COMBO ${combo} / MAX ${maxCombo}`, 32, 690, 15, '#8a95a8');
   drawText(`${lastAction} · ${lastGrade}`, 1248, 690, 18, '#f0f3f7', 'right');
-  drawText('J Weak   K Heavy   L Dodge   ; Parry   R Reset', 640, 32, 15, '#8a95a8', 'center');
+  drawText('J Weak   K Heavy   L Dodge   ; Tag Parry   R Reset', 640, 32, 15, '#8a95a8', 'center');
+}
+
+function updateSupportAttacks(now: number) {
+  const currentBeat = Math.floor(getBeatFloat(now));
+
+  if (currentBeat === lastSupportBeat || currentBeat % 2 !== 0 || bossHp <= 0 || playerHp <= 0) {
+    return;
+  }
+
+  lastSupportBeat = currentBeat;
+  const supportCount = characters.length - 1;
+  bossHp = clamp(bossHp - supportCount * 0.18, 0, 100);
+  groggy = clamp(groggy + supportCount * 0.16, 0, 100);
+  score += supportCount * 12;
 }
 
 function update(deltaSeconds: number, now: number) {
   const beat = Math.floor(getBeatFloat(now));
   generateEnemyAttacks(beat);
   resolveEnemyHits(now);
+  updateSupportAttacks(now);
 
   if (sync <= 0) {
     playerHp = clamp(playerHp - deltaSeconds * 3, 0, 100);
@@ -653,7 +729,7 @@ function render(nowMs: number) {
 
   drawBoss(now);
   drawAttackRead(now);
-  drawPlayer(now);
+  drawParty(now);
   drawBeatRing(now);
   drawHud(now);
   drawFloatingTexts(deltaSeconds);
