@@ -97,6 +97,8 @@ const gameCanvas = canvas;
 const gameContext = context;
 const beatDuration = 0.5;
 const attackCycleBeats = 16;
+const zyncMax = 100;
+const zeroFieldDuration = 10;
 const startTime = performance.now() / 1000;
 const attackPattern: Array<{ move: EnemyMove; guardType: GuardType; windup: number; impact: number }> = [
   { move: 'slash', guardType: 'parryable', windup: 5, impact: 6 },
@@ -117,6 +119,9 @@ let playerHp = 100;
 let bossHp = 100;
 let sync = 50;
 let energy = 0;
+let zync = 0;
+let zeroFieldUntil = 0;
+let zeroUltimateAvailable = false;
 let groggy = 0;
 let score = 0;
 let combo = 0;
@@ -230,6 +235,48 @@ function gradeMultiplier(grade: Grade) {
   }
 
   return 0;
+}
+
+function getZyncGradeMultiplier(grade: Grade) {
+  if (grade === 'PERFECT') {
+    return 1.35;
+  }
+
+  if (grade === 'GOOD') {
+    return 1;
+  }
+
+  if (grade === 'BAD') {
+    return 0.45;
+  }
+
+  return 0;
+}
+
+function isZeroFieldActive(now = performance.now() / 1000) {
+  return now < zeroFieldUntil;
+}
+
+function enterZeroField(now = performance.now() / 1000) {
+  zync = 0;
+  zeroFieldUntil = now + zeroFieldDuration;
+  zeroUltimateAvailable = true;
+  counterUntil = Math.max(counterUntil, now + 1.2);
+  addEffect('beatRing', 640, 520, '#dff6ff', 1.6);
+  addEffect('tagParryFlash', 640, 465, '#7c5cff', 1.35);
+  addFloatingText('ZERO FIELD', 640, 500, '#dff6ff');
+}
+
+function addZync(points: number, grade: Grade, now = performance.now() / 1000) {
+  if (isZeroFieldActive(now) || grade === 'MISS') {
+    return;
+  }
+
+  zync = clamp(zync + points * getZyncGradeMultiplier(grade), 0, zyncMax);
+
+  if (zync >= zyncMax) {
+    enterZeroField(now);
+  }
 }
 
 function clamp(value: number, min: number, max: number) {
@@ -557,6 +604,7 @@ function applyAttack(action: 'weak' | 'heavy', grade: Grade, now: number, chainS
   const multiplier = gradeMultiplier(grade);
   const inBreak = beatFloat < breakUntilBeat;
   const inCounter = now < counterUntil;
+  const inZeroField = isZeroFieldActive(now);
   const activeCharacter = characters[activeCharacterIndex];
   const activeActor = characterActors[activeCharacterIndex];
   const comboName = getComboName();
@@ -605,6 +653,11 @@ function applyAttack(action: 'weak' | 'heavy', grade: Grade, now: number, chainS
     groggyGain *= 1.5;
   }
 
+  if (inZeroField) {
+    damage *= 1.35;
+    groggyGain *= 1.55;
+  }
+
   bossHp = clamp(bossHp - damage * multiplier, 0, 100);
   groggy = clamp(groggy + groggyGain * multiplier * activeCharacter.groggyPower, 0, 100);
   energy = action === 'weak' ? clamp(energy + 6 * multiplier, 0, 100) : energy;
@@ -646,13 +699,15 @@ function applyAttack(action: 'weak' | 'heavy', grade: Grade, now: number, chainS
   );
   addEffect('beatRing', 1120, 610, grade === 'PERFECT' ? '#f5c84c' : '#0fb9b1', multiplier);
   addFloatingText(comboName || grade, 640, 525, comboName ? '#f5c84c' : '#f0f3f7');
+  addZync(action === 'weak' ? 7 + chainStep * 1.5 : 12 + chainStep * 2, grade, now);
 }
 
 function applyUltimate(grade: Grade, now: number) {
   const multiplier = gradeMultiplier(grade);
   const activeCharacter = characters[activeCharacterIndex];
+  const zeroCast = isZeroFieldActive(now) && zeroUltimateAvailable;
 
-  if (energy < 60) {
+  if (!zeroCast && energy < 60) {
     combo = 0;
     sync = clamp(sync - 4, 0, 100);
     addEffect('warningPulse', 640, 520, '#ff9f43', 0.8);
@@ -660,17 +715,25 @@ function applyUltimate(grade: Grade, now: number) {
     return;
   }
 
-  energy = clamp(energy - 60, 0, 100);
+  if (zeroCast) {
+    zeroUltimateAvailable = false;
+  } else {
+    energy = clamp(energy - 60, 0, 100);
+  }
+
   counterUntil = now + 1.6;
-  bossHp = clamp(bossHp - 9.5 * multiplier, 0, 100);
-  groggy = clamp(groggy + 18 * multiplier * activeCharacter.groggyPower, 0, 100);
-  score += Math.round(700 * multiplier);
+  bossHp = clamp(bossHp - (zeroCast ? 14.5 : 9.5) * multiplier, 0, 100);
+  groggy = clamp(groggy + (zeroCast ? 30 : 18) * multiplier * activeCharacter.groggyPower, 0, 100);
+  score += Math.round((zeroCast ? 1100 : 700) * multiplier);
   addEffect('tagParryFlash', 640, 410, activeCharacter.accent, 1.45 * multiplier);
   addEffect('hitSpark', 640, 255, activeCharacter.accent, 1.6 * multiplier);
   addSpriteEffect(getCharacterSpriteEffect(activeCharacter.name), 640, 360, 0.75, 0.44, 1);
   addSpriteEffect(getCharacterSpriteEffect(activeCharacter.name, 'heavy'), 640, 340, 0.65, 0.5, 0.95);
+  if (zeroCast) {
+    addSpriteEffect('parryPing', 640, 410, 0.8, 0.38, 0.9);
+  }
   addEffect('beatRing', 1120, 610, '#f5c84c', 1.3 * multiplier);
-  addFloatingText(`${activeCharacter.name} ULTIMATE`, 640, 500, '#f5c84c');
+  addFloatingText(`${activeCharacter.name} ${zeroCast ? 'ZERO ULTIMATE' : 'ULTIMATE'}`, 640, 500, zeroCast ? '#dff6ff' : '#f5c84c');
 }
 
 function handleAction(action: Action) {
@@ -719,8 +782,10 @@ function handleAction(action: Action) {
       score += Math.round(140 * multiplier);
       addEffect('pixelBurst', 640, 485, '#0fb9b1', multiplier);
       addFloatingText('EVADE WINDOW', 640, 485, '#0fb9b1');
+      addZync(18, grade, now);
     } else {
       addFloatingText('STEP', 640, 575, '#8a95a8');
+      addZync(5, grade, now);
     }
   }
 
@@ -744,6 +809,7 @@ function handleAction(action: Action) {
       addSpriteEffect('parryPing', 640, 465, 0.72, 0.34, 1);
       addEffect('pixelBurst', 640, 300, '#f5c84c', multiplier);
       addFloatingText(`${nextCharacter.name} TAG PARRY`, 640, 465, nextCharacter.accent);
+      addZync(30, grade, now);
     } else if (findUnparryableTarget(now)) {
       combo = 0;
       sync = clamp(sync - 8, 0, 100);
@@ -753,6 +819,7 @@ function handleAction(action: Action) {
       counterUntil = now + 0.55;
       addEffect('beatRing', 640, 585, nextCharacter.accent, 0.85);
       addFloatingText(`${nextCharacter.name} TAG IN`, 640, 575, nextCharacter.accent);
+      addZync(8, grade, now);
     }
   }
 
@@ -772,6 +839,9 @@ function resetFight() {
   bossHp = 100;
   sync = 50;
   energy = 0;
+  zync = 0;
+  zeroFieldUntil = 0;
+  zeroUltimateAvailable = false;
   groggy = 0;
   score = 0;
   combo = 0;
@@ -1145,13 +1215,15 @@ function drawFloatingTexts(deltaSeconds: number) {
 function drawHud(now: number) {
   const beatFloat = getBeatFloat(now);
   const inBreak = beatFloat < breakUntilBeat;
-  const result = playerHp <= 0 ? 'FAILED' : bossHp <= 0 ? 'CLEARED' : inBreak ? 'EXHAUSTED' : 'ACTION ASSAULT';
+  const inZeroField = isZeroFieldActive(now);
+  const zeroRemaining = Math.max(0, zeroFieldUntil - now);
+  const result = playerHp <= 0 ? 'FAILED' : bossHp <= 0 ? 'CLEARED' : inZeroField ? 'ZERO FIELD' : inBreak ? 'EXHAUSTED' : 'ACTION ASSAULT';
   const activeAttack = getIncomingAttack(now);
-  const warningColor = activeAttack?.guardType === 'unparryable' ? '#ff5a6e' : activeAttack ? '#f5c84c' : '#0fb9b1';
+  const warningColor = inZeroField ? '#dff6ff' : activeAttack?.guardType === 'unparryable' ? '#ff5a6e' : activeAttack ? '#f5c84c' : '#0fb9b1';
 
   drawPanel(292, 24, 696, 74, warningColor, 0.82);
   drawText('CORE BRUTE', 320, 51, 18, '#f0f3f7');
-  drawText(result, 958, 51, 14, inBreak ? '#f5c84c' : '#8a95a8', 'right');
+  drawText(result, 958, 51, 14, inZeroField ? '#dff6ff' : inBreak ? '#f5c84c' : '#8a95a8', 'right');
   drawBar(320, 64, 640, 12, bossHp, '#ff5a6e');
   drawBar(320, 84, 640, 8, groggy, '#f5c84c');
   drawText('HP', 292, 74, 11, '#8a95a8');
@@ -1169,7 +1241,7 @@ function drawHud(now: number) {
   });
   drawBar(42, 160, 178, 8, playerHp, '#0fb9b1');
 
-  drawPanel(1014, 24, 242, 184, '#7c5cff', 0.78);
+  drawPanel(1014, 24, 242, 206, '#7c5cff', 0.78);
   drawText('TIMING', 1032, 52, 16, '#f0f3f7');
   drawText(lastGrade, 1238, 52, 20, lastGrade === 'PERFECT' ? '#f5c84c' : '#f0f3f7', 'right');
   drawText(lastAction, 1032, 82, 14, '#8a95a8');
@@ -1179,6 +1251,9 @@ function drawHud(now: number) {
   drawText(`SCORE ${score}`, 1032, 164, 15, '#f0f3f7');
   drawText('ENERGY', 1032, 188, 12, '#8a95a8');
   drawBar(1092, 180, 136, 8, energy, '#0fb9b1');
+  drawText(inZeroField ? `ZERO ${zeroRemaining.toFixed(1)}s` : 'ZYNC', 1032, 214, 12, inZeroField ? '#dff6ff' : '#8a95a8');
+  drawBar(1092, 206, 136, 8, inZeroField ? (zeroRemaining / zeroFieldDuration) * 100 : zync, inZeroField ? '#dff6ff' : '#7c5cff');
+  drawText(zeroUltimateAvailable ? 'ULT READY' : inZeroField ? 'ULT USED' : `${Math.floor(zync)}/${zyncMax}`, 1228, 214, 11, zeroUltimateAvailable ? '#f5c84c' : '#8a95a8', 'right');
 
   drawPanel(214, 626, 852, 64, warningColor, 0.82);
   const commands = [
@@ -1199,7 +1274,9 @@ function drawHud(now: number) {
 
   const banner = inBreak
     ? 'EXHAUSTED: FREE COMBO'
-    : activeAttack
+    : inZeroField
+      ? `ZERO FIELD: DAMAGE x1.35 · GROGGY x1.55 · ${zeroUltimateAvailable ? 'ULTIMATE READY' : 'ULTIMATE USED'}`
+      : activeAttack
       ? activeAttack.guardType === 'parryable'
         ? 'YELLOW: TAG PARRY OR DODGE'
         : 'RED: DODGE ONLY'
@@ -1317,6 +1394,10 @@ function updateFieldMotion(deltaSeconds: number, now: number) {
 
 function update(deltaSeconds: number, now: number) {
   const beat = Math.floor(getBeatFloat(now));
+  if (zeroFieldUntil > 0 && now >= zeroFieldUntil) {
+    zeroFieldUntil = 0;
+    zeroUltimateAvailable = false;
+  }
   generateEnemyAttacks(beat);
   resolveEnemyHits(now);
   updateSupportAttacks(now);
