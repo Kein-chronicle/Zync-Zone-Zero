@@ -31,6 +31,7 @@ Validate whether a fixed-camera boss confrontation can feel good when combat act
 - Boss HP, Player HP, Sync, Energy, Groggy, Score, Combo.
 - Enemy attacks are represented by boss action states, not falling notes.
 - Enemy attacks are split into yellow parryable attacks and red unparryable attacks.
+- Enemy intent now projects the next recommended 4-note command: yellow attacks push `T W W H`, red attacks push `D T W H`.
 - Party has three characters. One is active; the other two auto-attack on rhythm.
 - Weak attack, heavy attack, dodge, tag, and ultimate are driven by the 4-token command phrase system in `docs/rulebooks/combat-command-rulebook.md`.
 - Yellow attacks can be parried or dodged.

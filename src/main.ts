@@ -783,6 +783,40 @@ function getIncomingAttack(now = performance.now() / 1000) {
   );
 }
 
+function getGuidanceAttack(now = performance.now() / 1000) {
+  if (isBossGroggy(now)) {
+    return undefined;
+  }
+
+  const beatFloat = getBeatFloat(now);
+
+  return attacks.find(
+    (attack) => !attack.resolved && attack.impactBeat >= beatFloat - 0.15 && attack.impactBeat - beatFloat <= 8,
+  );
+}
+
+function getAttackGuidance(attack: EnemyAttack | undefined) {
+  if (!attack) {
+    return undefined;
+  }
+
+  if (attack.guardType === 'parryable') {
+    return {
+      command: ['T', 'W', 'W', 'H'],
+      keys: ['Z/X', 'J', 'J', 'K'],
+      label: 'TAG PARRY ROUTE',
+      response: 'Catch yellow with tag, then convert into Rush.',
+    };
+  }
+
+  return {
+    command: ['D', 'T', 'W', 'H'],
+    keys: ['L', 'Z/X', 'J', 'K'],
+    label: 'DODGE COUNTER ROUTE',
+    response: 'Evade red first, then tag into counter pressure.',
+  };
+}
+
 function getAttackPhase(attack: EnemyAttack | undefined, now = performance.now() / 1000) {
   if (!attack) {
     return 'idle';
@@ -1596,7 +1630,7 @@ function drawParty(now: number) {
 }
 
 function drawAttackRead(now: number) {
-  const attack = getIncomingAttack(now);
+  const attack = getGuidanceAttack(now);
 
   if (!attack) {
     drawText(isBossGroggy(now) ? 'Boss exhausted. Push damage.' : 'Enemy neutral. Build pressure.', 640, 420, 17, '#8a95a8', 'center');
@@ -1607,21 +1641,44 @@ function drawAttackRead(now: number) {
   const untilImpact = attack.impactBeat - beatFloat;
   const progress = clamp(1 - untilImpact / Math.max(attack.impactBeat - attack.windupBeat, 0.1), 0, 1);
   const color = attack.guardType === 'parryable' ? '#f5c84c' : '#ff5a6e';
-  const response = attack.guardType === 'parryable' ? 'TAG PARRY OR DODGE' : 'DODGE ONLY';
+  const guidance = getAttackGuidance(attack);
+  const pulse = Math.max(0, Math.sin(getBeatFloat(now) * Math.PI * 2));
+  const urgent = untilImpact <= 2;
+
+  gameContext.save();
+  gameContext.globalAlpha = urgent ? 0.16 + pulse * 0.16 : 0.08 + pulse * 0.08;
+  gameContext.strokeStyle = color;
+  gameContext.lineWidth = urgent ? 12 : 7;
+  gameContext.strokeRect(28, 188, 1224, 404);
+  gameContext.globalAlpha = 1;
+
+  drawPanel(324, 348, 632, 134, color, urgent ? 0.92 : 0.82);
+  drawText('ENEMY INTENT', 348, 377, 14, '#8a95a8');
+  drawText(`${attack.guardType === 'parryable' ? 'YELLOW' : 'RED'} ${attack.move.toUpperCase()} IN ${Math.max(untilImpact, 0).toFixed(1)} BEATS`, 932, 377, 14, color, 'right');
 
   gameContext.fillStyle = '#20242b';
-  gameContext.fillRect(440, 405, 400, 10);
+  gameContext.fillRect(360, 394, 560, 12);
   gameContext.fillStyle = color;
-  gameContext.fillRect(440, 405, 400 * progress, 10);
-  drawText('Enemy motion read', 640, 389, 15, '#8a95a8', 'center');
-  drawText(
-    `${attack.move.toUpperCase()} · ${response} · ${Math.max(untilImpact, 0).toFixed(1)} beats`,
-    640,
-    436,
-    20,
-    color,
-    'center',
-  );
+  gameContext.fillRect(360, 394, 560 * progress, 12);
+
+  if (guidance) {
+    drawText(guidance.label, 640, 423, 18, color, 'center');
+    guidance.command.forEach((token, index) => {
+      const x = 464 + index * 88;
+      gameContext.fillStyle = index === commandBuffer.length ? color : '#151b24';
+      gameContext.globalAlpha = index === commandBuffer.length ? 0.82 : 0.92;
+      gameContext.fillRect(x, 438, 70, 32);
+      gameContext.globalAlpha = 1;
+      gameContext.strokeStyle = color;
+      gameContext.lineWidth = 2;
+      gameContext.strokeRect(x, 438, 70, 32);
+      drawText(token, x + 35, 461, 18, index === commandBuffer.length ? '#101114' : '#f0f3f7', 'center');
+      drawText(guidance.keys[index], x + 35, 489, 11, '#8a95a8', 'center');
+    });
+    drawText(guidance.response, 640, 516, 13, '#dff6ff', 'center');
+  }
+
+  gameContext.restore();
 }
 
 function drawBeatRing(now: number) {
@@ -1806,7 +1863,9 @@ function drawHud(now: number) {
   const zeroRemaining = Math.max(0, zeroFieldUntil - now);
   const result = playerHp <= 0 ? 'FAILED' : bossHp <= 0 ? 'CLEARED' : inZeroField ? 'ZERO FIELD' : inBreak ? 'EXHAUSTED' : 'ACTION ASSAULT';
   const activeAttack = getIncomingAttack(now);
-  const warningColor = inZeroField ? '#dff6ff' : activeAttack?.guardType === 'unparryable' ? '#ff5a6e' : activeAttack ? '#f5c84c' : '#0fb9b1';
+  const guidanceAttack = getGuidanceAttack(now);
+  const intentAttack = activeAttack ?? guidanceAttack;
+  const warningColor = inZeroField ? '#dff6ff' : intentAttack?.guardType === 'unparryable' ? '#ff5a6e' : intentAttack ? '#f5c84c' : '#0fb9b1';
 
   drawPanel(292, 24, 696, 74, warningColor, 0.82);
   drawText('CORE BRUTE', 320, 51, 18, '#f0f3f7');
@@ -1878,14 +1937,18 @@ function drawHud(now: number) {
     activePhraseAction ? activePhraseAction.color : '#8a95a8',
     'center',
   );
-  drawText('COMMANDS: T W W H / W T H H / D T W H / T W T H / W H T H    T = Z OR X', 640, 603, 12, '#8a95a8', 'center');
+  const guidance = getAttackGuidance(guidanceAttack);
+  const commandTip = guidance
+    ? `NEXT: ${guidance.command.join(' ')}    KEYS: ${guidance.keys.join(' ')}`
+    : 'COMMANDS: T W W H / W T H H / D T W H / T W T H / W H T H    T = Z OR X';
+  drawText(commandTip, 640, 603, 12, guidance ? warningColor : '#8a95a8', 'center');
 
   const banner = inBreak
     ? 'EXHAUSTED: FREE COMBO'
     : inZeroField
       ? `ZERO FIELD: DAMAGE x1.35 · GROGGY x1.55 · ${zeroUltimateAvailable ? 'ULTIMATE READY' : 'ULTIMATE USED'}`
-      : activeAttack
-      ? activeAttack.guardType === 'parryable'
+      : intentAttack
+      ? intentAttack.guardType === 'parryable'
         ? 'YELLOW: TAG PARRY OR DODGE'
         : 'RED: DODGE ONLY'
       : 'NEUTRAL: BUILD RHYTHM PRESSURE';
@@ -2089,9 +2152,11 @@ function render(nowMs: number) {
   update(deltaSeconds, now);
 
   gameContext.clearRect(0, 0, gameCanvas.width, gameCanvas.height);
+  const guidanceAttack = getGuidanceAttack(now);
+  const activeAttack = getActiveAttack(now) ?? guidanceAttack;
   drawPixelCityStage(gameContext, gameCanvas.width, gameCanvas.height, {
     beat: getBeatFloat(now),
-    warningColor: getActiveAttack(now)?.guardType === 'unparryable' ? '#ff5a6e' : '#0fb9b1',
+    warningColor: activeAttack?.guardType === 'unparryable' ? '#ff5a6e' : activeAttack ? '#f5c84c' : '#0fb9b1',
   });
 
   drawRhythmAtmosphere(now);
