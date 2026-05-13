@@ -1769,11 +1769,62 @@ function drawRhythmLane(now: number) {
   gameContext.restore();
 }
 
+function drawBossAura(attack: EnemyAttack | undefined, groggyActive: boolean, x: number, y: number, now: number) {
+  if (!attack && !groggyActive) {
+    return;
+  }
+
+  const beatFloat = getBeatFloat(now);
+  const pulse = 0.5 + Math.max(0, Math.sin(beatFloat * Math.PI * 2)) * 0.5;
+  const color = groggyActive ? '#f5c84c' : attack?.guardType === 'unparryable' ? '#ff5a6e' : '#f5c84c';
+  const untilImpact = attack ? clamp(attack.impactBeat - beatFloat, 0, 8) : 0;
+  const urgency = attack ? 1 - untilImpact / 8 : 0.35;
+  const auraAlpha = groggyActive ? 0.18 : 0.14 + urgency * 0.18 + pulse * 0.08;
+  const auraWidth = 116 + urgency * 42 + pulse * 18;
+  const auraHeight = 76 + urgency * 34 + pulse * 14;
+
+  gameContext.save();
+  gameContext.globalCompositeOperation = 'screen';
+  gameContext.shadowColor = color;
+  gameContext.shadowBlur = 24 + urgency * 24;
+  for (let ring = 0; ring < 3; ring += 1) {
+    gameContext.globalAlpha = auraAlpha * (1 - ring * 0.22);
+    gameContext.strokeStyle = color;
+    gameContext.lineWidth = groggyActive ? 3 : attack?.guardType === 'unparryable' ? 5 - ring : 4 - ring * 0.6;
+    gameContext.beginPath();
+    gameContext.ellipse(
+      x,
+      y + 4,
+      auraWidth + ring * 24,
+      auraHeight + ring * 16,
+      Math.sin(beatFloat * 0.7 + ring) * 0.08,
+      0,
+      Math.PI * 2,
+    );
+    gameContext.stroke();
+  }
+
+  const shards = attack?.guardType === 'unparryable' ? 14 : 10;
+  for (let index = 0; index < shards; index += 1) {
+    const angle = (Math.PI * 2 * index) / shards + beatFloat * (attack?.guardType === 'unparryable' ? -0.32 : 0.24);
+    const radiusX = auraWidth * (0.72 + (index % 3) * 0.08);
+    const radiusY = auraHeight * (0.7 + (index % 2) * 0.1);
+    const shardX = x + Math.cos(angle) * radiusX;
+    const shardY = y + 4 + Math.sin(angle) * radiusY;
+    const shardSize = attack?.guardType === 'unparryable' ? 6 + urgency * 5 : 4 + pulse * 3;
+    gameContext.globalAlpha = 0.32 + urgency * 0.34;
+    gameContext.fillStyle = color;
+    gameContext.fillRect(Math.round(shardX - shardSize / 2), Math.round(shardY - shardSize / 2), shardSize, shardSize);
+  }
+  gameContext.restore();
+}
+
 function drawBoss(now: number) {
-  const activeAttack = getActiveAttack(now);
+  const motionAttack = getActiveAttack(now);
+  const readableAttack = motionAttack ?? getGuidanceAttack(now);
   const groggyActive = isBossGroggy(now);
-  const phase = groggyActive ? 'groggy' : getAttackPhase(activeAttack, now);
-  const attackColor = activeAttack?.guardType === 'unparryable' ? '#ff5a6e' : '#f5c84c';
+  const phase = groggyActive ? 'groggy' : getAttackPhase(motionAttack, now);
+  const attackColor = readableAttack?.guardType === 'unparryable' ? '#ff5a6e' : '#f5c84c';
   const x = bossActor.x;
 
   grunts.forEach((grunt, index) => {
@@ -1785,26 +1836,27 @@ function drawBoss(now: number) {
     const color = grunt.id === 'EG-01' ? '#f5c84c' : '#ff5a6e';
     drawPixelGrunt(gameContext, grunt.id, grunt.actor.x, grunt.actor.y, grunt.id === 'EG-01' ? 0.46 : 0.44, {
       beat: getBeatFloat(now) + 0.25 + index * 0.3,
-      move: activeAttack?.move,
+      move: motionAttack?.move,
       phase: gruntPhase,
       warningColor: color,
     });
     drawBar(grunt.actor.x - 44, grunt.actor.y + 42, 88, 5, (grunt.hp / grunt.maxHp) * 100, color, '#151923');
   });
 
+  drawBossAura(readableAttack, groggyActive, x, bossActor.y, now);
   drawPixelBoss(gameContext, x, bossActor.y, 1.35, coreBrutePalette, {
     beat: getBeatFloat(now),
-    move: activeAttack?.move,
+    move: motionAttack?.move,
     phase,
-    warningColor: groggyActive ? '#f5c84c' : activeAttack ? attackColor : coreBrutePalette.armor,
+    warningColor: groggyActive ? '#f5c84c' : readableAttack ? attackColor : coreBrutePalette.armor,
   });
 
-  const label = activeAttack
-    ? `${activeAttack.move.toUpperCase()} · ${activeAttack.guardType === 'parryable' ? 'PARRY' : 'DODGE'}`
+  const label = readableAttack
+    ? `${readableAttack.move.toUpperCase()} · ${readableAttack.guardType === 'parryable' ? 'PARRY' : 'DODGE'}`
     : groggyActive
       ? 'EXHAUSTED · FREE COMBO'
       : 'WATCH THE BOSS';
-  drawText(label, x, 112, 15, groggyActive ? '#f5c84c' : activeAttack ? attackColor : '#8a95a8', 'center');
+  drawText(label, x, 112, 15, groggyActive ? '#f5c84c' : readableAttack ? attackColor : '#8a95a8', 'center');
 }
 
 function drawParty(now: number) {
@@ -1849,25 +1901,7 @@ function drawAttackRead(now: number) {
 
   if (!attack) {
     drawText(isBossGroggy(now) ? 'Boss exhausted. Push damage.' : 'Enemy neutral. Build pressure.', 640, 420, 17, '#8a95a8', 'center');
-    return;
   }
-
-  const beatFloat = getBeatFloat(now);
-  const untilImpact = attack.impactBeat - beatFloat;
-  const color = attack.guardType === 'parryable' ? '#f5c84c' : '#ff5a6e';
-  const pulse = Math.max(0, Math.sin(getBeatFloat(now) * Math.PI * 2));
-  const urgent = untilImpact <= 2;
-
-  gameContext.save();
-  gameContext.globalAlpha = urgent ? 0.16 + pulse * 0.16 : 0.08 + pulse * 0.08;
-  gameContext.strokeStyle = color;
-  gameContext.lineWidth = urgent ? 12 : 7;
-  gameContext.strokeRect(28, 188, 1224, 404);
-  gameContext.globalAlpha = 1;
-  drawText(`${attack.guardType === 'parryable' ? 'YELLOW' : 'RED'} ${attack.move.toUpperCase()} · ${Math.max(untilImpact, 0).toFixed(1)} BEATS`, 640, 420, 18, color, 'center');
-  drawText('FOLLOW COLORED NOTES', 640, 446, 12, '#8a95a8', 'center');
-
-  gameContext.restore();
 }
 
 function drawBeatRing(now: number) {
